@@ -25,4 +25,30 @@
     <string name="library_section_one_shots">Звуки (%1$d)</string>
     <string name="library_section_weather">Погода (%1$d)</string>
     <string name="library_more_items">…и ещё %1$d</string>
+
+    <!-- Sections (stage 4) -->
+    <string name="section_wheel">Колесо</string>
+    <string name="section_library">Библиотека</string>
+
+    <!-- Mood wheel (stage 4) -->
+    <string name="mood_happy">Радость</string>
+    <string name="mood_epic">Эпик</string>
+    <string name="mood_sad">Грусть</string>
+    <string name="mood_tense">Напряжение</string>
+    <string name="mood_creepy">Жуть</string>
+    <string name="mood_mystic">Мистика</string>
+    <string name="mood_magical">Магия</string>
+    <string name="mood_funny">Веселье</string>
+    <string name="mood_calm">Спокойствие</string>
+
+    <!-- Music controls (stage 4) -->
+    <string name="mode_exploration">Разведка</string>
+    <string name="mode_battle">Бой</string>
+    <string name="music_next">Следующий</string>
+    <string name="music_pause">Пауза</string>
+    <string name="music_play">Играть</string>
+    <string name="music_nothing">Ничего не играет — коснитесь колеса</string>
+    <string name="music_waiting">Загрузка трека…</string>
+    <string name="music_crossfading">кроссфейд…</string>
+    <string name="music_error">Ошибка воспроизведения: %1$s</string>
 </resources>

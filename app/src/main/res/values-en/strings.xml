@@ -25,4 +25,30 @@
     <string name="library_section_one_shots">Sounds (%1$d)</string>
     <string name="library_section_weather">Weather (%1$d)</string>
     <string name="library_more_items">…and %1$d more</string>
+
+    <!-- Sections (stage 4) -->
+    <string name="section_wheel">Wheel</string>
+    <string name="section_library">Library</string>
+
+    <!-- Mood wheel (stage 4) -->
+    <string name="mood_happy">Happy</string>
+    <string name="mood_epic">Epic</string>
+    <string name="mood_sad">Sad</string>
+    <string name="mood_tense">Tense</string>
+    <string name="mood_creepy">Creepy</string>
+    <string name="mood_mystic">Mystic</string>
+    <string name="mood_magical">Magic</string>
+    <string name="mood_funny">Funny</string>
+    <string name="mood_calm">Calm</string>
+
+    <!-- Music controls (stage 4) -->
+    <string name="mode_exploration">Exploration</string>
+    <string name="mode_battle">Battle</string>
+    <string name="music_next">Next</string>
+    <string name="music_pause">Pause</string>
+    <string name="music_play">Play</string>
+    <string name="music_nothing">Nothing playing — touch the wheel</string>
+    <string name="music_waiting">Loading track…</string>
+    <string name="music_crossfading">crossfading…</string>
+    <string name="music_error">Playback error: %1$s</string>
 </resources>

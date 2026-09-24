@@ -8,8 +8,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.dndsound.ui.LibraryScreen
-import com.example.dndsound.ui.LibraryViewModel
+import com.example.dndsound.ui.MainScreen
+import com.example.dndsound.ui.MainViewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -18,10 +18,16 @@ class MainActivity : ComponentActivity() {
         val container = (application as DnDSoundApp).container
         setContent {
             DnDSoundTheme {
-                val viewModel: LibraryViewModel = viewModel {
-                    LibraryViewModel(this@MainActivity, container.settingsRepository, container.libraryRepository, container.scanner)
+                val viewModel: MainViewModel = viewModel {
+                    MainViewModel(
+                        context = this@MainActivity,
+                        settingsRepository = container.settingsRepository,
+                        libraryRepository = container.libraryRepository,
+                        scanner = container.scanner,
+                        musicEngine = container.musicEngine,
+                    )
                 }
-                LibraryScreen(viewModel)
+                MainScreen(viewModel)
             }
         }
     }

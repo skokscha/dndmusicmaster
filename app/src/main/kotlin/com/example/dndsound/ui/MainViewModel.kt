@@ -5,22 +5,33 @@ import android.content.Intent
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.dndsound.core.model.MusicMode
+import com.example.dndsound.core.model.WheelPoint
+import com.example.dndsound.core.music.MusicEngine
+import com.example.dndsound.core.music.MusicState
 import com.example.dndsound.core.repo.AppSettings
 import com.example.dndsound.core.repo.Library
 import com.example.dndsound.core.repo.ScanState
 import com.example.dndsound.core.repo.SettingsRepository
 import com.example.dndsound.data.library.DefaultLibraryRepository
 import com.example.dndsound.data.library.SafScanner
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-class LibraryViewModel(
+/**
+ * Single screen ViewModel for stages 3-4: library onboarding/debug plus the
+ * music wheel. Stage 7 splits it per panel as the UI grows.
+ */
+class MainViewModel(
     context: Context,
     private val settingsRepository: SettingsRepository,
     private val libraryRepository: DefaultLibraryRepository,
     private val scanner: SafScanner,
+    val musicEngine: MusicEngine,
 ) : ViewModel() {
 
     private val appContext = context.applicationContext
@@ -32,6 +43,30 @@ class LibraryViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Library())
 
     val scanState: StateFlow<ScanState> = libraryRepository.scanState
+
+    val music: StateFlow<MusicState> = musicEngine.state
+
+    /** Live drag position shown on the wheel before the debounced commit. */
+    private val _liveMarker = MutableStateFlow<WheelPoint?>(null)
+    val liveMarker: StateFlow<WheelPoint?> = _liveMarker.asStateFlow()
+
+    fun onWheelDrag(point: WheelPoint) {
+        _liveMarker.value = point
+        musicEngine.setWheelTarget(point, music.value.mode)
+    }
+
+    fun setMode(mode: MusicMode) {
+        _liveMarker.value = null
+        musicEngine.setMode(mode)
+    }
+
+    fun nextTrack() = musicEngine.next()
+
+    fun pause() = musicEngine.pause()
+
+    fun resume() = musicEngine.resume()
+
+    // ------------------------------------------------------------- library
 
     fun onFolderPicked(uri: Uri?) {
         if (uri == null) return

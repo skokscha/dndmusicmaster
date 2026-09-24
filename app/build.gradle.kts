@@ -58,6 +58,8 @@ dependencies {
     implementation(libs.lifecycle.viewmodel.compose)
 
     implementation(libs.coroutines.android)
+    implementation(libs.media3.exoplayer)
+    implementation(libs.media3.common)
     implementation(libs.room.runtime)
     ksp(libs.room.compiler)
     implementation(libs.datastore.preferences)

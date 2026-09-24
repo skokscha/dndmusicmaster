@@ -96,7 +96,7 @@ object LibraryIndexBuilder {
             val moodSegment = segments[1]
             val meta = metas[file.directory]
             val isBattle = moodSegment.equals(BATTLE, ignoreCase = true)
-            val hasMetaPosition = meta?.wheel?.x != null && meta?.wheel?.y != null
+            val hasMetaPosition = meta?.wheel?.x != null && meta.wheel?.y != null
             val moodPoint = LibraryRules.defaultWheelPoint(moodSegment)
             if (moodPoint == null && !isBattle && !hasMetaPosition && meta?.mood == null) {
                 if (warnedDirs.add(file.directory)) {
