@@ -53,6 +53,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -450,6 +451,7 @@ private fun SoundsPanel(
     modifier: Modifier = Modifier,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
+    var soundLimit by rememberSaveable { mutableIntStateOf(MAX_ROWS) }
     Column(
         modifier = modifier
             .verticalScroll(rememberScrollState())
@@ -472,7 +474,10 @@ private fun SoundsPanel(
         ) {
             OutlinedTextField(
                 value = query,
-                onValueChange = { query = it },
+                onValueChange = {
+                    query = it
+                    soundLimit = MAX_ROWS
+                },
                 singleLine = true,
                 placeholder = { Text(stringResource(R.string.sounds_search_hint)) },
                 modifier = Modifier.weight(1f),
@@ -499,7 +504,7 @@ private fun SoundsPanel(
                 .fillMaxWidth()
                 .padding(top = 8.dp),
         ) {
-            filtered.take(MAX_ROWS).forEach { group ->
+            filtered.take(soundLimit).forEach { group ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Button(
                         onClick = { onPlay(group.id) },
@@ -519,11 +524,15 @@ private fun SoundsPanel(
                 }
             }
         }
-        if (filtered.size > MAX_ROWS) {
-            Text(
-                stringResource(R.string.library_more_items, filtered.size - MAX_ROWS),
-                style = MaterialTheme.typography.labelSmall,
-            )
+        if (filtered.size > soundLimit) {
+            OutlinedButton(
+                onClick = { soundLimit += MAX_ROWS },
+                modifier = Modifier
+                    .padding(top = 8.dp)
+                    .heightIn(min = 48.dp),
+            ) {
+                Text(stringResource(R.string.show_more, minOf(MAX_ROWS, filtered.size - soundLimit)))
+            }
         }
         if (state.ducking) {
             Text(
@@ -571,13 +580,33 @@ private fun AmbiencePanel(
             )
             return
         }
+        // Libraries can hold hundreds of environments: search narrows them,
+        // the chips page in batches so the FlowRow stays bounded.
+        var envQuery by rememberSaveable { mutableStateOf("") }
+        var envLimit by rememberSaveable { mutableIntStateOf(MAX_ROWS) }
+        OutlinedTextField(
+            value = envQuery,
+            onValueChange = {
+                envQuery = it
+                envLimit = MAX_ROWS
+            },
+            singleLine = true,
+            placeholder = { Text(stringResource(R.string.sounds_search_hint)) },
+            modifier = Modifier.fillMaxWidth(),
+        )
+        // Match names the way they are built from folder names: separators
+        // collapse to spaces ("env_011" finds "Env 011").
+        val normalizedQuery = envQuery.trim().replace('_', ' ').replace('-', ' ')
+        val visibleEnvironments = environments.filter {
+            normalizedQuery.isBlank() || it.name.contains(normalizedQuery, ignoreCase = true)
+        }
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 8.dp),
         ) {
-            environments.take(MAX_ROWS).forEach { env ->
+            visibleEnvironments.take(envLimit).forEach { env ->
                 FilterChip(
                     selected = ambience.environmentId == env.id,
                     onClick = {
@@ -590,6 +619,16 @@ private fun AmbiencePanel(
                     label = { Text(env.name) },
                     modifier = Modifier.heightIn(min = 48.dp),
                 )
+            }
+        }
+        if (visibleEnvironments.size > envLimit) {
+            OutlinedButton(
+                onClick = { envLimit += MAX_ROWS },
+                modifier = Modifier
+                    .padding(top = 8.dp)
+                    .heightIn(min = 48.dp),
+            ) {
+                Text(stringResource(R.string.show_more, minOf(MAX_ROWS, visibleEnvironments.size - envLimit)))
             }
         }
         if (ambience.environmentId != null) {
@@ -918,7 +957,7 @@ private fun LibraryContent(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            items(unplaced.take(MAX_ROWS)) { track ->
+            items(unplaced) { track ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         "• ${track.title}",
@@ -933,22 +972,20 @@ private fun LibraryContent(
                     }
                 }
             }
-            item { MoreRow(unplaced.size) }
         }
         val placed = library.tracks.filter { it.position != null }
         if (placed.isNotEmpty()) {
             item { SectionHeader(stringResource(R.string.library_section_tracks, placed.size)) }
-            items(placed.take(MAX_ROWS)) { track ->
+            items(placed) { track ->
                 Text(
                     "• ${track.title} — ${zoneName(WheelZones.zoneAt(track.position!!))}",
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
-            item { MoreRow(placed.size) }
         }
         if (library.environments.isNotEmpty()) {
             item { SectionHeader(stringResource(R.string.library_section_environments, library.environments.size)) }
-            items(library.environments.take(MAX_ROWS)) { env ->
+            items(library.environments) { env ->
                 Column {
                     Text("• ${env.name}", fontWeight = FontWeight.SemiBold)
                     env.layers.forEach { layer ->
@@ -959,17 +996,15 @@ private fun LibraryContent(
                     }
                 }
             }
-            item { MoreRow(library.environments.size) }
         }
         if (library.oneShots.isNotEmpty()) {
             item { SectionHeader(stringResource(R.string.library_section_one_shots, library.oneShots.size)) }
-            items(library.oneShots.take(MAX_ROWS)) { shot ->
+            items(library.oneShots) { shot ->
                 Text(
                     "• ${shot.name} — ${shot.category.name.lowercase()} ×${shot.variants.size}",
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
-            item { MoreRow(library.oneShots.size) }
         }
         if (library.weatherLoops.isNotEmpty()) {
             item { SectionHeader(stringResource(R.string.library_section_weather, library.weatherLoops.size)) }
@@ -1049,16 +1084,6 @@ private fun ZoneRow(zone: WheelZone, onPick: (String) -> Unit) {
             .heightIn(min = 40.dp),
     ) {
         Text(zoneName(zone))
-    }
-}
-
-@Composable
-private fun MoreRow(total: Int) {
-    if (total > MAX_ROWS) {
-        Text(
-            stringResource(R.string.library_more_items, total - MAX_ROWS),
-            style = MaterialTheme.typography.labelSmall,
-        )
     }
 }
 

@@ -118,4 +118,5 @@
     <string name="zones_dialog_title">Зона</string>
     <string name="zones_group_transitions">Переходы</string>
     <string name="action_cancel">Отмена</string>
+    <string name="show_more">Показать ещё %1$d</string>
 </resources>
