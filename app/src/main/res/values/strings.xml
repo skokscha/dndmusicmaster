@@ -29,7 +29,14 @@
     <!-- Sections (stage 4) -->
     <string name="section_wheel">Колесо</string>
     <string name="section_ambience">Окружение</string>
+    <string name="section_sounds">Звуки</string>
     <string name="section_library">Библиотека</string>
+
+    <!-- One-shot sounds (stage 6) -->
+    <string name="sounds_empty">Нет одиночных звуков — положите их в sounds/&lt;категория&gt;/</string>
+    <string name="sounds_search_hint">Поиск…</string>
+    <string name="sounds_stop_all">Стоп все</string>
+    <string name="sounds_ducking">Музыка и окружение приглушены</string>
 
     <!-- Ambience (stage 5) -->
     <string name="ambience_no_environments">В библиотеке нет окружений — положите их в ambience/&lt;название&gt;</string>

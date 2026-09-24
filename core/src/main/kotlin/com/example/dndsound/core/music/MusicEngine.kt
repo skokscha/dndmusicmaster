@@ -50,6 +50,8 @@ class MusicEngine(
         data object Pause : Command
         data object Resume : Command
         data class BusGains(val masterDb: Float, val musicDb: Float) : Command
+        /** One-shot ducking; null restores the normal bus gains. */
+        data class SetDuck(val db: Float?) : Command
         data object Release : Command
     }
 
@@ -62,6 +64,7 @@ class MusicEngine(
     private val recent = ArrayDeque<String>()
     private var masterDb = 0f
     private var musicBusDb = 0f
+    private var duckDb: Float? = null
     private val fader = FadeCoordinator(rampStepMs)
     private var debounceJob: Job? = null
 
@@ -123,6 +126,11 @@ class MusicEngine(
         commands.trySend(Command.BusGains(masterDb, musicBusDb))
     }
 
+    /** Ducks (db < 0) or restores (null) the music bus for one-shot playback. */
+    fun setDuck(db: Float?) {
+        commands.trySend(Command.SetDuck(db))
+    }
+
     fun release() {
         debounceJob?.cancel()
         commands.trySend(Command.Release)
@@ -162,6 +170,11 @@ class MusicEngine(
             is Command.BusGains -> {
                 masterDb = command.masterDb
                 musicBusDb = command.musicDb
+                applyStaticGains()
+            }
+
+            is Command.SetDuck -> {
+                duckDb = command.db
                 applyStaticGains()
             }
 
@@ -206,8 +219,9 @@ class MusicEngine(
         }
         val inTarget = GainMath.dbToLinear(masterDb) *
             GainMath.dbToLinear(musicBusDb) *
-            GainMath.dbToLinear(track.gainDb)
-        val generation = fader.begin()
+            GainMath.dbToLinear(track.gainDb) *
+            duckLinear()
+        val generation = fader.begin(listOfNotNull(outgoing, incoming))
         scope.launch {
             val completed = fader.crossfade(generation, outgoing, incoming, inTarget, crossfadeMs)
             if (completed) {
@@ -218,7 +232,7 @@ class MusicEngine(
     }
 
     private suspend fun fadeEverythingOut() {
-        val generation = fader.begin()
+        val generation = fader.begin(players)
         if (fader.fadeOutAll(generation, players, 150)) {
             players.forEach { it.pause() }
         }
@@ -237,8 +251,9 @@ class MusicEngine(
         _state.update { it.copy(playing = true) }
         val target = GainMath.dbToLinear(masterDb) *
             GainMath.dbToLinear(musicBusDb) *
-            GainMath.dbToLinear(track.gainDb)
-        val generation = fader.begin()
+            GainMath.dbToLinear(track.gainDb) *
+            duckLinear()
+        val generation = fader.begin(handle)
         scope.launch { fader.rampTo(generation, handle, target, 300) } // ~300 ms resume ramp
     }
 
@@ -247,10 +262,13 @@ class MusicEngine(
         val track = loadedTrack[active] ?: return
         val target = GainMath.dbToLinear(masterDb) *
             GainMath.dbToLinear(musicBusDb) *
-            GainMath.dbToLinear(track.gainDb)
-        val generation = fader.begin()
+            GainMath.dbToLinear(track.gainDb) *
+            duckLinear()
+        val generation = fader.begin(players[active])
         scope.launch { fader.rampTo(generation, players[active], target, 100) }
     }
+
+    private fun duckLinear(): Float = GainMath.dbToLinear(duckDb ?: 0f)
 
     private fun releaseNow() {
         loadedTrack.fill(null)

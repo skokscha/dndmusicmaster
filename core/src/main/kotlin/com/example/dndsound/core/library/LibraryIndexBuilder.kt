@@ -303,9 +303,18 @@ object LibraryIndexBuilder {
                     name = (if (groups.size == 1) meta?.title else null)
                         ?: LibraryRules.displayTitle(first.name),
                     category = category,
-                    variants = names.map { name -> filesInDir.first { it.name == name }.uri },
+                    variants = names.map { name ->
+                        val file = filesInDir.first { it.name == name }
+                        SoundFile(
+                            id = file.relativePath,
+                            title = LibraryRules.displayTitle(name),
+                            uri = file.uri,
+                            durationMs = file.durationMs ?: 0L,
+                        )
+                    },
                     iconKey = meta?.icon,
                     gainDb = meta?.gainDb ?: 0f,
+                    random = meta?.toRandomSpec(),
                 )
             }
         }

@@ -48,6 +48,20 @@ object Crossfade {
 }
 
 /**
+ * Equal-power stereo pan: -1 is full left, +1 full right. The squared channel
+ * gains sum to ~1 across the sweep, so perceived loudness does not depend on
+ * the pan position.
+ */
+object PanMath {
+
+    /** (left, right) linear gains for a pan position in [-1, 1]. */
+    fun volumes(pan: Float): Pair<Float, Float> {
+        val angle = (pan.coerceIn(-1f, 1f) + 1f) * (Math.PI.toFloat() / 4f)
+        return cos(angle) to sin(angle)
+    }
+}
+
+/**
  * Pure gain ramp: a perceptual (dB-domain) ramp from start to target, sampled
  * every [stepMs]. The engine plays these steps from a coroutine; here it is
  * fully deterministic and testable.

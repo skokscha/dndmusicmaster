@@ -75,4 +75,26 @@ class MixerMathTest {
         val gains = GainRamp.linearGains(-60f, 0f, durationMs = 500)
         assertTrue(gains.zipWithNext().all { (a, b) -> a <= b })
     }
+
+    @Test
+    fun `pan endpoints are single-channel and center is symmetric`() {
+        val (leftAtLeft, rightAtLeft) = PanMath.volumes(-1f)
+        assertEquals(1f, leftAtLeft, 1e-6f)
+        assertEquals(0f, rightAtLeft, 1e-6f)
+        val (leftAtRight, rightAtRight) = PanMath.volumes(1f)
+        assertEquals(0f, leftAtRight, 1e-6f)
+        assertEquals(1f, rightAtRight, 1e-6f)
+        val (left, right) = PanMath.volumes(0f)
+        assertEquals(left, right, 1e-6f)
+    }
+
+    @Test
+    fun `pan keeps constant power across the sweep`() {
+        var pan = -1f
+        while (pan <= 1f) {
+            val (left, right) = PanMath.volumes(pan)
+            assertEquals(1f, left * left + right * right, 1e-3f, "power off at pan=$pan")
+            pan += 0.1f
+        }
+    }
 }

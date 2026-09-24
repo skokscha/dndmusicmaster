@@ -3,8 +3,10 @@ package com.example.dndsound
 import android.app.Application
 import android.content.Context
 import com.example.dndsound.audio.ExoPlayerHandle
+import com.example.dndsound.audio.SoundPoolMixer
 import com.example.dndsound.core.ambience.AmbienceEngine
 import com.example.dndsound.core.music.MusicEngine
+import com.example.dndsound.core.oneshot.OneShotEngine
 import com.example.dndsound.core.wheel.TrackSelector
 import com.example.dndsound.data.index.AppDatabase
 import com.example.dndsound.data.library.DefaultLibraryRepository
@@ -14,7 +16,10 @@ import com.example.dndsound.data.settings.SettingsRepositoryImpl
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
 /**
  * Hand-rolled DI: one container per process, created in [onCreate] before any
@@ -65,4 +70,30 @@ class AppContainer(context: Context) {
             libraryRepository.library.first().weatherLoops[weather].orEmpty().map { it.uri }
         },
     )
+
+    val soundPoolMixer = SoundPoolMixer(appContext)
+
+    /** One-shot playback ducks both long-form buses while a sound is playing. */
+    val oneShotEngine = OneShotEngine(
+        scope = appScope,
+        mixer = soundPoolMixer,
+        onDuck = { db ->
+            musicEngine.setDuck(db)
+            ambienceEngine.setDuck(db)
+        },
+    )
+
+    init {
+        appScope.launch {
+            settingsRepository.settings.collect { settings ->
+                oneShotEngine.setDucking(settings.oneShotDuckingEnabled, settings.duckingDb)
+            }
+        }
+        appScope.launch {
+            libraryRepository.library
+                .map { it.oneShots }
+                .distinctUntilChanged()
+                .collect { oneShotEngine.setGroups(it) }
+        }
+    }
 }

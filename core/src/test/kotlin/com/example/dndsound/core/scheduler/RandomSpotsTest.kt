@@ -61,4 +61,14 @@ class RandomSpotsTest {
             assertTrue(pitch >= 0.95f && pitch <= 1.05f, "pitch jitter out of bounds: $pitch")
         }
     }
+
+    @Test
+    fun `pan jitter stays within its bounds`() {
+        val random = Random(6)
+        repeat(500) {
+            val pan = RandomSpots.jitterPan(0.5f, random)
+            assertTrue(pan >= -0.5f && pan <= 0.5f, "pan jitter out of bounds: $pan")
+        }
+        assertEquals(0f, RandomSpots.jitterPan(0f, random), 1e-6f)
+    }
 }

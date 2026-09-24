@@ -126,6 +126,55 @@ class AmbienceEngineTest {
     }
 
     @Test
+    fun `base and layer fade in together`() = runTest {
+        // Regression: with one global fade generation the layer fade-in used
+        // to supersede the base fade-in, leaving the base silent.
+        val (engine, h) = newEngine(backgroundScope)
+        engine.setEnvironment(env(layers = listOf(loopLayer("stream"))))
+        advanceTimeBy(600)
+        runCurrent()
+
+        assertEquals(1f, h[BASE].volume, 1e-3f)
+        assertEquals(1f, h[POOL0].volume, 1e-3f)
+    }
+
+    @Test
+    fun `two loop layers get their own slots and both fade in`() = runTest {
+        val (engine, h) = newEngine(backgroundScope)
+        engine.setEnvironment(env(layers = listOf(loopLayer("stream"), loopLayer("campfire"))))
+        advanceTimeBy(600)
+        runCurrent()
+
+        assertEquals(1f, h[POOL0].volume, 1e-3f)
+        assertEquals(1f, h[POOL0 + 1].volume, 1e-3f)
+        assertTrue(h[POOL0].looping)
+        assertTrue(h[POOL0 + 1].looping)
+        assertEquals(2, engine.state.value.layers.count { it.enabled })
+    }
+
+    @Test
+    fun `duck scales base and weather and restore ramps back`() = runTest {
+        val (engine, h) = newEngine(backgroundScope)
+        engine.setEnvironment(env())
+        engine.setWeather(Weather.RAIN, 0.5f)
+        advanceTimeBy(600)
+        runCurrent()
+
+        engine.setDuck(-3.5f)
+        advanceTimeBy(300)
+        runCurrent()
+        val ducked = dbToLinear(-3.5f)
+        assertEquals(ducked, h[BASE].volume, 0.01f)
+        assertEquals(dbToLinear(-12f) * ducked, h[WEATHER].volume, 0.01f)
+
+        engine.setDuck(null)
+        advanceTimeBy(300)
+        runCurrent()
+        assertEquals(1f, h[BASE].volume, 1e-3f)
+        assertEquals(dbToLinear(-12f), h[WEATHER].volume, 0.01f)
+    }
+
+    @Test
     fun `layer toggle off fades the slot out`() = runTest {
         val (engine, h) = newEngine(backgroundScope)
         engine.setEnvironment(env(layers = listOf(loopLayer("stream"))))

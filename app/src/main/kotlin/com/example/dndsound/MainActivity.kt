@@ -26,6 +26,7 @@ class MainActivity : ComponentActivity() {
                         scanner = container.scanner,
                         musicEngine = container.musicEngine,
                         ambienceEngine = container.ambienceEngine,
+                        oneShotEngine = container.oneShotEngine,
                     )
                 }
                 MainScreen(viewModel)

@@ -223,6 +223,29 @@ class MusicEngineTest {
     }
 
     @Test
+    fun `duck scales the playing volume and restore ramps back`() = runTest {
+        val harness = Harness()
+        harness.queue += track("t1")
+        val engine = newEngine(harness, backgroundScope)
+
+        engine.setWheelTarget(WheelPoint(0.7f, 0f))
+        advanceTimeBy(801)
+        runCurrent()
+        assertEquals(1f, harness.handles[0].volume, 1e-3f)
+
+        engine.setDuck(-3.5f)
+        advanceTimeBy(201)
+        runCurrent()
+        val ducked = Math.pow(10.0, -3.5 / 20.0).toFloat()
+        assertEquals(ducked, harness.handles[0].volume, 0.01f)
+
+        engine.setDuck(null)
+        advanceTimeBy(201)
+        runCurrent()
+        assertEquals(1f, harness.handles[0].volume, 1e-3f)
+    }
+
+    @Test
     fun `playback error is surfaced in state`() = runTest {
         val harness = Harness()
         harness.queue += track("t1")

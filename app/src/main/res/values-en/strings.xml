@@ -29,7 +29,14 @@
     <!-- Sections (stage 4) -->
     <string name="section_wheel">Wheel</string>
     <string name="section_ambience">Ambience</string>
+    <string name="section_sounds">Sounds</string>
     <string name="section_library">Library</string>
+
+    <!-- One-shot sounds (stage 6) -->
+    <string name="sounds_empty">No one-shot sounds — put them into sounds/&lt;category&gt;/</string>
+    <string name="sounds_search_hint">Search…</string>
+    <string name="sounds_stop_all">Stop all</string>
+    <string name="sounds_ducking">Music and ambience are ducked</string>
 
     <!-- Ambience (stage 5) -->
     <string name="ambience_no_environments">No environments in the library — put them into ambience/&lt;name&gt;</string>

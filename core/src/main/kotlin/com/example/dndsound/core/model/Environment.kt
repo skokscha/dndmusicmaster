@@ -71,7 +71,9 @@ data class OneShot(
     val id: String,
     val name: String,
     val category: SoundCategory = SoundCategory.CUSTOM,
-    val variants: List<String> = emptyList(),
+    val variants: List<SoundFile> = emptyList(),
     val iconKey: String? = null,
     val gainDb: Float = 0f,
+    /** Gain/pan/pitch jitter from meta.json; null = play exactly as indexed. */
+    val random: RandomSpec? = null,
 )

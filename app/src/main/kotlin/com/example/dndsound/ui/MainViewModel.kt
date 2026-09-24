@@ -14,7 +14,10 @@ import com.example.dndsound.core.model.Weather
 import com.example.dndsound.core.model.WheelPoint
 import com.example.dndsound.core.music.MusicEngine
 import com.example.dndsound.core.music.MusicState
+import com.example.dndsound.core.oneshot.OneShotEngine
+import com.example.dndsound.core.oneshot.OneShotState
 import com.example.dndsound.core.repo.AppSettings
+import com.example.dndsound.core.repo.FavoriteKind
 import com.example.dndsound.core.repo.Library
 import com.example.dndsound.core.repo.ScanState
 import com.example.dndsound.core.repo.SettingsRepository
@@ -28,8 +31,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /**
- * Single screen ViewModel for stages 3-4: library onboarding/debug plus the
- * music wheel. Stage 7 splits it per panel as the UI grows.
+ * Single screen ViewModel for stages 3-6: library onboarding/debug, the music
+ * wheel, ambience and one-shots. Stage 7 splits it per panel as the UI grows.
  */
 class MainViewModel(
     context: Context,
@@ -38,6 +41,7 @@ class MainViewModel(
     private val scanner: SafScanner,
     val musicEngine: MusicEngine,
     val ambienceEngine: AmbienceEngine,
+    val oneShotEngine: OneShotEngine,
 ) : ViewModel() {
 
     private val appContext = context.applicationContext
@@ -53,6 +57,18 @@ class MainViewModel(
     val music: StateFlow<MusicState> = musicEngine.state
 
     val ambience: StateFlow<AmbienceState> = ambienceEngine.state
+
+    val oneShots: StateFlow<OneShotState> = oneShotEngine.state
+
+    /** One-shot group ids marked as favorite. */
+    private val _favoriteOneShots = MutableStateFlow<Set<String>>(emptySet())
+    val favoriteOneShots: StateFlow<Set<String>> = _favoriteOneShots.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            _favoriteOneShots.value = libraryRepository.favorites(FavoriteKind.ONE_SHOT)
+        }
+    }
 
     /** Live drag position shown on the wheel before the debounced commit. */
     private val _liveMarker = MutableStateFlow<WheelPoint?>(null)
@@ -93,6 +109,24 @@ class MainViewModel(
     fun pauseAmbience() = ambienceEngine.pause()
 
     fun resumeAmbience() = ambienceEngine.resume()
+
+    // ------------------------------------------------------------ one-shots
+
+    fun playOneShot(groupId: String) = oneShotEngine.play(groupId)
+
+    fun stopAllOneShots() = oneShotEngine.stopAll()
+
+    fun toggleOneShotFavorite(groupId: String) {
+        val favorite = groupId !in _favoriteOneShots.value
+        _favoriteOneShots.value = if (favorite) {
+            _favoriteOneShots.value + groupId
+        } else {
+            _favoriteOneShots.value - groupId
+        }
+        viewModelScope.launch {
+            libraryRepository.setFavorite(FavoriteKind.ONE_SHOT, groupId, favorite)
+        }
+    }
 
     // ------------------------------------------------------------- library
 

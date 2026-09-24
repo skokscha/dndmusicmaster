@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -18,9 +19,11 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,14 +43,15 @@ import com.example.dndsound.core.model.Mood
 import com.example.dndsound.core.model.MusicMode
 import com.example.dndsound.core.model.TimeOfDay
 import com.example.dndsound.core.model.Weather
+import com.example.dndsound.core.oneshot.OneShotState
 import com.example.dndsound.core.repo.Library
 import com.example.dndsound.core.repo.ScanState
 import com.example.dndsound.core.wheel.WheelMath
 import com.example.dndsound.ui.wheel.MoodWheel
 
 /**
- * Stage 4 screen: mood wheel with playback controls plus the stage 3 library
- * debug listing behind a section toggle. The full three-panel layout replaces
+ * Stage 6 screen: mood wheel, ambience, one-shot sounds and the library
+ * debug listing behind section toggles. The full three-panel layout replaces
  * this in stage 7.
  */
 @Composable
@@ -57,6 +61,8 @@ fun MainScreen(viewModel: MainViewModel) {
     val scanState by viewModel.scanState.collectAsStateWithLifecycle()
     val music by viewModel.music.collectAsStateWithLifecycle()
     val ambience by viewModel.ambience.collectAsStateWithLifecycle()
+    val oneShots by viewModel.oneShots.collectAsStateWithLifecycle()
+    val favoriteOneShots by viewModel.favoriteOneShots.collectAsStateWithLifecycle()
     val liveMarker by viewModel.liveMarker.collectAsStateWithLifecycle()
 
     val folderPicker = rememberLauncherForActivityResult(
@@ -87,6 +93,11 @@ fun MainScreen(viewModel: MainViewModel) {
                 label = { Text(stringResource(R.string.section_ambience)) },
             )
             FilterChip(
+                selected = section == Section.SOUNDS,
+                onClick = { section = Section.SOUNDS },
+                label = { Text(stringResource(R.string.section_sounds)) },
+            )
+            FilterChip(
                 selected = section == Section.LIBRARY,
                 onClick = { section = Section.LIBRARY },
                 label = { Text(stringResource(R.string.section_library)) },
@@ -115,6 +126,14 @@ fun MainScreen(viewModel: MainViewModel) {
                 onResume = viewModel::resumeAmbience,
             )
 
+            Section.SOUNDS -> SoundsSection(
+                state = oneShots,
+                favorites = favoriteOneShots,
+                onPlay = viewModel::playOneShot,
+                onStopAll = viewModel::stopAllOneShots,
+                onToggleFavorite = viewModel::toggleOneShotFavorite,
+            )
+
             Section.LIBRARY -> LibraryContent(
                 library = library,
                 scanState = scanState,
@@ -128,7 +147,103 @@ fun MainScreen(viewModel: MainViewModel) {
     }
 }
 
-private enum class Section { WHEEL, AMBIENCE, LIBRARY }
+private enum class Section { WHEEL, AMBIENCE, SOUNDS, LIBRARY }
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SoundsSection(
+    state: OneShotState,
+    favorites: Set<String>,
+    onPlay: (String) -> Unit,
+    onStopAll: () -> Unit,
+    onToggleFavorite: (String) -> Unit,
+) {
+    var query by rememberSaveable { mutableStateOf("") }
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        if (state.groups.isEmpty()) {
+            Text(
+                stringResource(R.string.sounds_empty),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 24.dp),
+            )
+            return
+        }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+        ) {
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                singleLine = true,
+                placeholder = { Text(stringResource(R.string.sounds_search_hint)) },
+                modifier = Modifier.weight(1f),
+            )
+            OutlinedButton(
+                onClick = onStopAll,
+                modifier = Modifier
+                    .padding(start = 8.dp)
+                    .heightIn(min = 48.dp),
+            ) {
+                Text(stringResource(R.string.sounds_stop_all))
+            }
+        }
+        val trimmedQuery = query.trim()
+        val filtered = if (trimmedQuery.isEmpty()) {
+            state.groups
+        } else {
+            state.groups.filter { it.name.contains(trimmedQuery, ignoreCase = true) }
+        }
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+        ) {
+            filtered.take(MAX_ROWS).forEach { group ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Button(
+                        onClick = { onPlay(group.id) },
+                        modifier = Modifier.heightIn(min = 48.dp),
+                    ) {
+                        Text("${group.name} ×${group.variants.size}")
+                    }
+                    TextButton(
+                        onClick = { onToggleFavorite(group.id) },
+                        modifier = Modifier.heightIn(min = 48.dp),
+                    ) {
+                        Text(
+                            if (group.id in favorites) "★" else "☆",
+                            color = MaterialTheme.colorScheme.secondary,
+                        )
+                    }
+                }
+            }
+        }
+        if (filtered.size > MAX_ROWS) {
+            Text(
+                stringResource(R.string.library_more_items, filtered.size - MAX_ROWS),
+                style = MaterialTheme.typography.labelSmall,
+            )
+        }
+        if (state.ducking) {
+            Text(
+                stringResource(R.string.sounds_ducking),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        state.error?.let { message ->
+            Text(
+                stringResource(R.string.music_error, message),
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+    }
+}
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable

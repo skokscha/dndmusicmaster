@@ -31,6 +31,10 @@ object RandomSpots {
     fun jitterGainDb(baseDb: Float, jitterDb: Float, random: Random = Random.Default): Float =
         baseDb + (random.nextFloat() * 2f - 1f) * abs(jitterDb)
 
+    /** Jittered stereo pan in [-1, 1] around the center by ±[jitter]. */
+    fun jitterPan(jitter: Float, random: Random = Random.Default): Float =
+        ((random.nextFloat() * 2f - 1f) * abs(jitter)).coerceIn(-1f, 1f)
+
     /** Jittered pitch factor around 1.0 by ±[jitterPct] (e.g. 0.95..1.05 for 5). */
     fun jitterPitch(jitterPct: Float, random: Random = Random.Default): Float =
         1f + (random.nextFloat() * 2f - 1f) * (jitterPct / 100f)
