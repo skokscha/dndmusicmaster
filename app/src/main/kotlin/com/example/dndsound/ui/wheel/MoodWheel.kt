@@ -15,6 +15,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.sp
@@ -35,6 +36,19 @@ import kotlin.math.sin
  *
  * TalkBack actions (next mood / intensity) arrive in the polish stage.
  */
+
+/** Warm per-mood tints so each sector is recognizable at a glance. */
+private val MoodTints: Map<Mood, Color> = mapOf(
+    Mood.HAPPY to Color(0xFFE8C45A),
+    Mood.EPIC to Color(0xFFE07840),
+    Mood.SAD to Color(0xFF6E8FBF),
+    Mood.TENSE to Color(0xFFC9564B),
+    Mood.CREEPY to Color(0xFF9A6EC8),
+    Mood.MYSTIC to Color(0xFF5FBFAF),
+    Mood.MAGICAL to Color(0xFFC86ED0),
+    Mood.FUNNY to Color(0xFF9ACD5A),
+)
+
 @Composable
 fun MoodWheel(
     marker: WheelPoint?,
@@ -75,23 +89,40 @@ fun MoodWheel(
         val radius = min(size.width, size.height) / 2f * WHEEL_MARGIN
 
         drawCircle(color = backdropColor, radius = radius, center = center)
-        Mood.entries.forEachIndexed { index, mood ->
-            // Screen angles run clockwise, so the sector start mirrors the mood angle.
+        Mood.entries.forEach { mood ->
+            val tint = MoodTints.getValue(mood)
             val start = -mood.angleDeg - SECTOR_HALF_DEG
             drawArc(
-                color = accentColor.copy(alpha = if (index % 2 == 0) 0.10f else 0.05f),
+                color = tint.copy(alpha = 0.20f),
                 startAngle = start,
                 sweepAngle = SECTOR_SWEEP_DEG,
                 useCenter = true,
                 topLeft = Offset(center.x - radius, center.y - radius),
                 size = Size(radius * 2, radius * 2),
             )
+            // Radial separator on the sector's clockwise boundary.
+            val boundary = Math.toRadians((start).toDouble())
+            drawLine(
+                color = tint.copy(alpha = 0.45f),
+                start = center,
+                end = Offset(
+                    center.x + radius * cos(boundary).toFloat(),
+                    center.y + radius * sin(boundary).toFloat(),
+                ),
+                strokeWidth = 1.5f,
+            )
         }
+        drawCircle(
+            color = accentColor.copy(alpha = 0.5f),
+            radius = radius,
+            center = center,
+            style = Stroke(width = 2f),
+        )
 
         val calmRadius = radius * WheelMath.CALM_RADIUS
         drawCircle(color = accentColor.copy(alpha = 0.16f), radius = calmRadius, center = center)
         drawCircle(
-            color = accentColor.copy(alpha = 0.5f),
+            color = accentColor.copy(alpha = 0.55f),
             radius = calmRadius,
             center = center,
             style = Stroke(width = 1.5f),
@@ -104,7 +135,10 @@ fun MoodWheel(
                 center.y - radius * 0.72f * sin(angleRad).toFloat(),
             )
             val name = moodLabels.getValue(mood)
-            val measured = textMeasurer.measure(name, TextStyle(fontSize = 13.sp, color = labelColor))
+            val measured = textMeasurer.measure(
+                name,
+                TextStyle(fontSize = 14.sp, color = labelColor, fontFamily = FontFamily.Serif),
+            )
             drawText(
                 textLayoutResult = measured,
                 topLeft = Offset(
@@ -128,8 +162,9 @@ fun MoodWheel(
                 center.x + point.radius * radius * cos(angleRad).toFloat(),
                 center.y - point.radius * radius * sin(angleRad).toFloat(),
             )
-            drawCircle(color = markerColor, radius = 14f, center = markerPos)
-            drawCircle(color = Color.White.copy(alpha = 0.85f), radius = 5f, center = markerPos)
+            drawCircle(color = markerColor.copy(alpha = 0.25f), radius = 24f, center = markerPos)
+            drawCircle(color = markerColor, radius = 13f, center = markerPos)
+            drawCircle(color = Color.White.copy(alpha = 0.9f), radius = 5f, center = markerPos)
         }
     }
 }

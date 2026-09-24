@@ -153,6 +153,24 @@ class OneShotEngineTest {
     }
 
     @Test
+    fun `master and sfx bus gains scale the played volumes`() = runTest {
+        val h = Harness()
+        val engine = h.engine(backgroundScope, { testScheduler.currentTime })
+        engine.setGroups(listOf(shot("g", "a")))
+        engine.setBusGains(masterDb = -6f, sfxDb = -3f)
+        runCurrent()
+
+        engine.play("g")
+        runCurrent()
+
+        val gain = dbToLinear(-9f)
+        val (centerLeft, centerRight) = PanMath.volumes(0f)
+        val call = h.mixer.plays.single()
+        assertEquals(centerLeft * gain, call.left, 1e-4f)
+        assertEquals(centerRight * gain, call.right, 1e-4f)
+    }
+
+    @Test
     fun `first play ducks and the duck releases after the sound ends`() = runTest {
         val h = Harness()
         val engine = h.engine(backgroundScope, { testScheduler.currentTime })

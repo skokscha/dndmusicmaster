@@ -61,6 +61,10 @@ class AppContainer(context: Context) {
             val tracks = libraryRepository.library.first().tracks
             trackSelector.select(tracks, point, mode, recent)
         },
+        selectNextTrack = { current, recent ->
+            val tracks = libraryRepository.library.first().tracks
+            trackSelector.next(tracks, current, recent)
+        },
     )
 
     val ambienceEngine = AmbienceEngine(
@@ -87,6 +91,9 @@ class AppContainer(context: Context) {
         appScope.launch {
             settingsRepository.settings.collect { settings ->
                 oneShotEngine.setDucking(settings.oneShotDuckingEnabled, settings.duckingDb)
+                musicEngine.setBusGains(settings.masterDb, settings.musicBusDb)
+                ambienceEngine.setBusGains(settings.masterDb, settings.ambienceBusDb)
+                oneShotEngine.setBusGains(settings.masterDb, settings.sfxBusDb)
             }
         }
         appScope.launch {

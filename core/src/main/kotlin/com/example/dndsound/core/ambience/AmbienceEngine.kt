@@ -61,6 +61,7 @@ class AmbienceEngine(
         /** Internal: a pool spot finished playing and freed its slot. */
         data class SpotEnded(val slot: Int) : Command
         data class SetDuck(val db: Float?) : Command
+        data class SetBusGains(val masterDb: Float, val ambienceDb: Float) : Command
         data object Pause : Command
         data object Resume : Command
         data object Release : Command
@@ -94,6 +95,8 @@ class AmbienceEngine(
     private var weatherIntensity = 0.6f
     private var paused = false
     private var duckDb: Float? = null
+    private var masterDb = 0f
+    private var ambienceBusDb = 0f
 
     /** True while the base runs on the fallback looper instead of [baseHandle]. */
     private var usingFallback = false
@@ -154,6 +157,11 @@ class AmbienceEngine(
         commands.trySend(Command.SetDuck(db))
     }
 
+    /** Applies the master and ambience bus gains to every active volume. */
+    fun setBusGains(masterDb: Float, ambienceDb: Float) {
+        commands.trySend(Command.SetBusGains(masterDb, ambienceDb))
+    }
+
     fun resume() {
         commands.trySend(Command.Resume)
     }
@@ -186,7 +194,12 @@ class AmbienceEngine(
             }
             is Command.SetDuck -> {
                 duckDb = command.db
-                applyDuck()
+                applyGains()
+            }
+            is Command.SetBusGains -> {
+                masterDb = command.masterDb
+                ambienceBusDb = command.ambienceDb
+                applyGains()
             }
             Command.Pause -> pauseAll()
             Command.Resume -> resumeAll()
@@ -224,7 +237,7 @@ class AmbienceEngine(
         if (!env.seamless && env.baseDurationMs > 0) {
             baseHandle.pause()
             usingFallback = true
-            fallbackLooper.start(uri, loopLengthMs = env.baseDurationMs, volume = duckLinear())
+            fallbackLooper.start(uri, loopLengthMs = env.baseDurationMs, volume = outputLinear())
         } else {
             usingFallback = false
             fallbackLooper.stop()
@@ -233,7 +246,7 @@ class AmbienceEngine(
             baseHandle.setVolume(0f)
             baseHandle.play()
             val generation = fader.begin(baseHandle)
-            scope.launch { fader.rampTo(generation, baseHandle, duckLinear(), crossfadeMs) }
+            scope.launch { fader.rampTo(generation, baseHandle, outputLinear(), crossfadeMs) }
         }
     }
 
@@ -247,7 +260,7 @@ class AmbienceEngine(
         timeOfDay = newTimeOfDay
         if (!env.seamless && env.baseDurationMs > 0) {
             usingFallback = true
-            fallbackLooper.start(uri, loopLengthMs = env.baseDurationMs, volume = duckLinear())
+            fallbackLooper.start(uri, loopLengthMs = env.baseDurationMs, volume = outputLinear())
             publishState()
             return
         }
@@ -258,7 +271,7 @@ class AmbienceEngine(
             baseHandle.setSource(uri)
             baseHandle.setLooping(true)
             baseHandle.play()
-            fader.rampTo(generation, baseHandle, duckLinear(), crossfadeMs / 2)
+            fader.rampTo(generation, baseHandle, outputLinear(), crossfadeMs / 2)
         }
         publishState()
     }
@@ -313,7 +326,7 @@ class AmbienceEngine(
             handle.setLooping(true)
             handle.setVolume(0f)
             handle.play()
-            val gain = layerGainLinear(layer) * duckLinear()
+            val gain = layerGainLinear(layer) * outputLinear()
             val generation = fader.begin(handle)
             scope.launch { fader.rampTo(generation, handle, gain, crossfadeMs) }
         }
@@ -328,7 +341,7 @@ class AmbienceEngine(
         val slot = assignedSlots.entries.firstOrNull { it.value == layerId }?.key
         if (slot != null && isEnabled(layer)) {
             val generation = fader.begin(pool[slot])
-            fader.rampTo(generation, pool[slot], layerGainLinear(layer) * duckLinear(), 100)
+            fader.rampTo(generation, pool[slot], layerGainLinear(layer) * outputLinear(), 100)
         }
         publishState()
     }
@@ -365,7 +378,7 @@ class AmbienceEngine(
         handle.setSource(variantUri)
         handle.setLooping(false)
         handle.setSpeedFactor(speed)
-        handle.setVolume(gainLinear * duckLinear())
+        handle.setVolume(gainLinear * outputLinear())
         handle.play()
         activeSpots[slot] = layerId
         activeSpotGains[slot] = gainLinear
@@ -380,7 +393,7 @@ class AmbienceEngine(
             changed -> refreshWeather() // new weather -> pick a new loop file
             else -> {
                 val generation = fader.begin(weatherHandle)
-                fader.rampTo(generation, weatherHandle, weatherTarget() * duckLinear(), crossfadeMs)
+                fader.rampTo(generation, weatherHandle, weatherTarget() * outputLinear(), crossfadeMs)
             }
         }
     }
@@ -397,7 +410,7 @@ class AmbienceEngine(
         weatherHandle.setVolume(0f)
         weatherHandle.play()
         val generation = fader.begin(weatherHandle)
-        fader.rampTo(generation, weatherHandle, weatherTarget() * duckLinear(), crossfadeMs)
+        fader.rampTo(generation, weatherHandle, weatherTarget() * outputLinear(), crossfadeMs)
     }
 
     private suspend fun stopWeather() {
@@ -486,28 +499,32 @@ class AmbienceEngine(
     private fun layerGainLinear(layer: AmbienceLayer): Float =
         GainMath.dbToLinear(layerGains[layer.id] ?: layer.baseGainDb)
 
-    private fun duckLinear(): Float = GainMath.dbToLinear(duckDb ?: 0f)
+    /** Master × ambience-bus × duck, as one linear factor applied per player. */
+    private fun outputLinear(): Float =
+        GainMath.dbToLinear(masterDb) *
+            GainMath.dbToLinear(ambienceBusDb) *
+            GainMath.dbToLinear(duckDb ?: 0f)
 
     /**
-     * Re-applies every active volume after the duck state changed: base,
+     * Re-applies every active volume after duck or bus gains changed: base,
      * weather, manual loop layers and running spots, each to its own target
      * in one shared fade.
      */
-    private suspend fun applyDuck() {
-        val duck = duckLinear()
+    private suspend fun applyGains() {
+        val factor = outputLinear()
         if (usingFallback) {
-            fallbackLooper.setVolume(duck)
+            fallbackLooper.setVolume(factor)
         } else if (environment != null) {
             val generation = fader.begin(baseHandle)
-            scope.launch { fader.rampTo(generation, baseHandle, duck, 100) }
+            scope.launch { fader.rampTo(generation, baseHandle, factor, 100) }
         }
         val targets = buildMap {
-            if (weather != Weather.NONE) put(weatherHandle, weatherTarget() * duck)
+            if (weather != Weather.NONE) put(weatherHandle, weatherTarget() * factor)
             assignedSlots.forEach { (slot, layerId) ->
                 environment?.layers?.firstOrNull { it.id == layerId }
-                    ?.let { put(pool[slot], layerGainLinear(it) * duck) }
+                    ?.let { put(pool[slot], layerGainLinear(it) * factor) }
             }
-            activeSpotGains.forEach { (slot, gain) -> put(pool[slot], gain * duck) }
+            activeSpotGains.forEach { (slot, gain) -> put(pool[slot], gain * factor) }
         }
         if (targets.isNotEmpty()) {
             val generation = fader.begin(targets.keys)

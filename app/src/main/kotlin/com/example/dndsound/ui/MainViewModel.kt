@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.dndsound.core.ambience.AmbienceEngine
 import com.example.dndsound.core.ambience.AmbienceState
+import com.example.dndsound.core.model.Bus
 import com.example.dndsound.core.model.Environment
 import com.example.dndsound.core.model.MusicMode
 import com.example.dndsound.core.model.TimeOfDay
@@ -125,6 +126,35 @@ class MainViewModel(
         }
         viewModelScope.launch {
             libraryRepository.setFavorite(FavoriteKind.ONE_SHOT, groupId, favorite)
+        }
+    }
+
+    // ------------------------------------------------------------ mixer/theme
+
+    fun setBusGain(bus: Bus, gainDb: Float) {
+        viewModelScope.launch {
+            settingsRepository.update { s ->
+                when (bus) {
+                    Bus.MASTER -> s.copy(masterDb = gainDb)
+                    Bus.MUSIC -> s.copy(musicBusDb = gainDb)
+                    Bus.AMBIENCE -> s.copy(ambienceBusDb = gainDb)
+                    Bus.SFX -> s.copy(sfxBusDb = gainDb)
+                }
+            }
+        }
+    }
+
+    fun toggleTheme() {
+        viewModelScope.launch {
+            settingsRepository.update { s ->
+                s.copy(
+                    theme = if (s.theme == AppSettings.Theme.DARK) {
+                        AppSettings.Theme.AMBER
+                    } else {
+                        AppSettings.Theme.DARK
+                    },
+                )
+            }
         }
     }
 

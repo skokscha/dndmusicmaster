@@ -30,7 +30,16 @@
     <string name="section_wheel">Колесо</string>
     <string name="section_ambience">Окружение</string>
     <string name="section_sounds">Звуки</string>
+    <string name="section_mixer">Микшер</string>
     <string name="section_library">Библиотека</string>
+
+    <!-- Mixer + adaptive shell (stage 7) -->
+    <string name="bus_master">Общая</string>
+    <string name="bus_music">Музыка</string>
+    <string name="bus_ambience">Окружение</string>
+    <string name="bus_sfx">Эффекты</string>
+    <string name="bus_gain_value">%1$+.1f дБ</string>
+    <string name="theme_toggle">Переключить тему</string>
 
     <!-- One-shot sounds (stage 6) -->
     <string name="sounds_empty">Нет одиночных звуков — положите их в sounds/&lt;категория&gt;/</string>
@@ -64,8 +73,7 @@
     <!-- Music controls (stage 4) -->
     <string name="mode_exploration">Разведка</string>
     <string name="mode_battle">Бой</string>
-    <string name="music_next">Следующий</string>
-    <string name="music_pause">Пауза</string>
+        <string name="music_pause">Пауза</string>
     <string name="music_play">Играть</string>
     <string name="music_nothing">Ничего не играет — коснитесь колеса</string>
     <string name="music_waiting">Загрузка трека…</string>

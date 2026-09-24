@@ -14,7 +14,12 @@ data class AppSettings(
     val keepScreenOn: Boolean = false,
     val pauseOnHeadphonesDisconnected: Boolean = true,
     val languageTag: String = "ru",
-    val theme: Theme = Theme.DARK,
+    val theme: Theme = Theme.AMBER,
+    /** Mixer bus gains in dB; every engine applies them on top of per-track gains. */
+    val masterDb: Float = 0f,
+    val musicBusDb: Float = 0f,
+    val ambienceBusDb: Float = 0f,
+    val sfxBusDb: Float = 0f,
 ) {
     enum class Theme { DARK, AMBER }
 }

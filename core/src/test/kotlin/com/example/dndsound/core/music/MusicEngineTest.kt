@@ -33,6 +33,8 @@ class MusicEngineTest {
         val handles = mutableListOf<FakePlayerHandle>()
         val selections = mutableListOf<Pair<MusicMode, List<String>>>()
         val queue = ArrayDeque<Track>()
+        val nextQueue = ArrayDeque<Track>()
+        val nextCalls = mutableListOf<List<String>>()
     }
 
     private fun newEngine(
@@ -45,6 +47,10 @@ class MusicEngineTest {
         selectTrack = { _, mode, recent ->
             harness.selections += mode to recent
             harness.queue.removeFirstOrNull()
+        },
+        selectNextTrack = { _, recent ->
+            harness.nextCalls += recent
+            harness.nextQueue.removeFirstOrNull()
         },
         crossfadeMs = crossfadeMs,
         rampStepMs = 25,
@@ -116,6 +122,7 @@ class MusicEngineTest {
         harness.queue += track("t2")
         val engine = newEngine(harness, backgroundScope)
 
+        harness.nextQueue += track("t2")
         engine.setWheelTarget(WheelPoint(0.7f, 0f))
         advanceTimeBy(801)
         runCurrent()
@@ -124,7 +131,7 @@ class MusicEngineTest {
         runCurrent()
 
         assertEquals(emptyList<String>(), harness.selections[0].second)
-        assertEquals(listOf("t1"), harness.selections[1].second)
+        assertEquals(listOf("t1"), harness.nextCalls.single())
     }
 
     @Test
@@ -134,6 +141,7 @@ class MusicEngineTest {
         harness.queue += track("t2")
         val engine = newEngine(harness, backgroundScope)
 
+        harness.nextQueue += track("t2")
         engine.setWheelTarget(WheelPoint(0.7f, 0f))
         advanceTimeBy(801)
         runCurrent()

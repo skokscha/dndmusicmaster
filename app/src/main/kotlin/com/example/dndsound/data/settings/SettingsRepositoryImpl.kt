@@ -39,7 +39,11 @@ class SettingsRepositoryImpl(private val context: Context) : SettingsRepository 
         pauseOnHeadphonesDisconnected = prefs[KEY_PAUSE_ON_UNPLUG] ?: true,
         languageTag = prefs[KEY_LANGUAGE] ?: "ru",
         theme = prefs[KEY_THEME]?.let { runCatching { AppSettings.Theme.valueOf(it) }.getOrNull() }
-            ?: AppSettings.Theme.DARK,
+            ?: AppSettings.Theme.AMBER,
+        masterDb = prefs[KEY_MASTER_DB] ?: 0f,
+        musicBusDb = prefs[KEY_MUSIC_BUS_DB] ?: 0f,
+        ambienceBusDb = prefs[KEY_AMBIENCE_BUS_DB] ?: 0f,
+        sfxBusDb = prefs[KEY_SFX_BUS_DB] ?: 0f,
     )
 
     private fun write(prefs: MutablePreferences, s: AppSettings) {
@@ -55,6 +59,10 @@ class SettingsRepositoryImpl(private val context: Context) : SettingsRepository 
         prefs[KEY_PAUSE_ON_UNPLUG] = s.pauseOnHeadphonesDisconnected
         prefs[KEY_LANGUAGE] = s.languageTag
         prefs[KEY_THEME] = s.theme.name
+        prefs[KEY_MASTER_DB] = s.masterDb
+        prefs[KEY_MUSIC_BUS_DB] = s.musicBusDb
+        prefs[KEY_AMBIENCE_BUS_DB] = s.ambienceBusDb
+        prefs[KEY_SFX_BUS_DB] = s.sfxBusDb
     }
 
     private companion object {
@@ -69,5 +77,9 @@ class SettingsRepositoryImpl(private val context: Context) : SettingsRepository 
         val KEY_PAUSE_ON_UNPLUG = booleanPreferencesKey("pause_on_headphones_disconnect")
         val KEY_LANGUAGE = stringPreferencesKey("language_tag")
         val KEY_THEME = stringPreferencesKey("theme")
+        val KEY_MASTER_DB = floatPreferencesKey("master_db")
+        val KEY_MUSIC_BUS_DB = floatPreferencesKey("music_bus_db")
+        val KEY_AMBIENCE_BUS_DB = floatPreferencesKey("ambience_bus_db")
+        val KEY_SFX_BUS_DB = floatPreferencesKey("sfx_bus_db")
     }
 }

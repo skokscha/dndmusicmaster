@@ -70,6 +70,7 @@ class OneShotEngine(
         data class Play(val groupId: String) : Command
         data object StopAll : Command
         data class SetDucking(val enabled: Boolean, val db: Float) : Command
+        data class SetBusGains(val masterDb: Float, val sfxDb: Float) : Command
         data object Release : Command
     }
 
@@ -86,6 +87,8 @@ class OneShotEngine(
     private var ducking = false
     private var duckJob: Job? = null
     private var syntheticId = -1
+    private var masterDb = 0f
+    private var sfxBusDb = 0f
 
     init {
         scope.launch {
@@ -119,6 +122,15 @@ class OneShotEngine(
         commands.trySend(Command.SetDucking(enabled, db))
     }
 
+    /**
+     * Applies the master and SFX bus gains to newly started streams. Already
+     * sounding streams keep their volume — SoundPool streams are short and a
+     * per-stream volume change would need id tracking in :app for no real gain.
+     */
+    fun setBusGains(masterDb: Float, sfxDb: Float) {
+        commands.trySend(Command.SetBusGains(masterDb, sfxDb))
+    }
+
     fun release() {
         commands.trySend(Command.Release)
     }
@@ -143,6 +155,11 @@ class OneShotEngine(
                 if (!duckEnabled && ducking) releaseDuck()
             }
 
+            is Command.SetBusGains -> {
+                masterDb = command.masterDb
+                sfxBusDb = command.sfxDb
+            }
+
             Command.Release -> {
                 stopEverything()
                 mixer.release()
@@ -165,8 +182,14 @@ class OneShotEngine(
         val rate = if (spec != null) RandomSpots.jitterPitch(spec.pitchJitterPct, random) else 1f
 
         val gainLinear = GainMath.dbToLinear(gainDb)
+        val busLinear = GainMath.dbToLinear(masterDb) * GainMath.dbToLinear(sfxBusDb)
         val (left, right) = PanMath.volumes(pan)
-        val streamId = mixer.play(variant.uri, left * gainLinear, right * gainLinear, rate)
+        val streamId = mixer.play(
+            variant.uri,
+            left * gainLinear * busLinear,
+            right * gainLinear * busLinear,
+            rate,
+        )
 
         // Stream id 0 means "decoding"; track it under a synthetic key so the
         // duck still covers the first tap of every freshly loaded sound.

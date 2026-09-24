@@ -35,6 +35,8 @@ class MusicEngine(
     private val scope: CoroutineScope,
     playerFactory: () -> PlayerHandle,
     private val selectTrack: suspend (point: WheelPoint, mode: MusicMode, recent: List<String>) -> Track?,
+    /** Auto-advance at track end; must stay inside the current track's sector. */
+    private val selectNextTrack: suspend (current: Track, recent: List<String>) -> Track? = { current, _ -> current },
     private val crossfadeMs: Long = 4_000,
     private val debounceMs: Long = 600,
     private val rampStepMs: Long = 25,
@@ -161,7 +163,22 @@ class MusicEngine(
                 }
             }
 
-            Command.Next -> advanceTo(anchors[mode] ?: WheelPoint.CENTER)
+            Command.Next -> {
+                val current = if (active >= 0) loadedTrack[active] else null
+                if (current == null) {
+                    advanceTo(anchors[mode] ?: WheelPoint.CENTER)
+                } else {
+                    // Auto-advance stays inside the current track's sector.
+                    val next = selectNextTrack(current, recent.toList())
+                    if (next != null) {
+                        crossfadeTo(next, current.position)
+                    } else {
+                        // The sector emptied under us (e.g. after a rescan).
+                        fadeEverythingOut()
+                        _state.update { it.copy(playing = false, currentTrack = null, crossfading = false) }
+                    }
+                }
+            }
 
             Command.Pause -> pauseActive()
 

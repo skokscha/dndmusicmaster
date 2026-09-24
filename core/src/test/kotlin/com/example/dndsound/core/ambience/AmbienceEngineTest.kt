@@ -126,6 +126,27 @@ class AmbienceEngineTest {
     }
 
     @Test
+    fun `master and ambience bus gains scale base and layers and restore on zero`() = runTest {
+        val (engine, h) = newEngine(backgroundScope)
+        engine.setBusGains(masterDb = -6f, ambienceDb = -6f)
+
+        engine.setEnvironment(env(layers = listOf(loopLayer("stream"))))
+        advanceTimeBy(600)
+        runCurrent()
+
+        val factor = dbToLinear(-12f)
+        assertEquals(factor, h[BASE].volume, 1e-3f)
+        assertEquals(factor, h[POOL0].volume, 1e-3f)
+
+        engine.setBusGains(masterDb = 0f, ambienceDb = 0f)
+        advanceTimeBy(600)
+        runCurrent()
+
+        assertEquals(1f, h[BASE].volume, 1e-3f)
+        assertEquals(1f, h[POOL0].volume, 1e-3f)
+    }
+
+    @Test
     fun `base and layer fade in together`() = runTest {
         // Regression: with one global fade generation the layer fade-in used
         // to supersede the base fade-in, leaving the base silent.

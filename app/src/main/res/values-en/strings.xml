@@ -30,7 +30,16 @@
     <string name="section_wheel">Wheel</string>
     <string name="section_ambience">Ambience</string>
     <string name="section_sounds">Sounds</string>
+    <string name="section_mixer">Mixer</string>
     <string name="section_library">Library</string>
+
+    <!-- Mixer + adaptive shell (stage 7) -->
+    <string name="bus_master">Master</string>
+    <string name="bus_music">Music</string>
+    <string name="bus_ambience">Ambience</string>
+    <string name="bus_sfx">Effects</string>
+    <string name="bus_gain_value">%1$+.1f dB</string>
+    <string name="theme_toggle">Switch theme</string>
 
     <!-- One-shot sounds (stage 6) -->
     <string name="sounds_empty">No one-shot sounds — put them into sounds/&lt;category&gt;/</string>
@@ -64,8 +73,7 @@
     <!-- Music controls (stage 4) -->
     <string name="mode_exploration">Exploration</string>
     <string name="mode_battle">Battle</string>
-    <string name="music_next">Next</string>
-    <string name="music_pause">Pause</string>
+        <string name="music_pause">Pause</string>
     <string name="music_play">Play</string>
     <string name="music_nothing">Nothing playing — touch the wheel</string>
     <string name="music_waiting">Loading track…</string>

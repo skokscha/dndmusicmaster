@@ -2,11 +2,14 @@ package com.example.dndsound.ui
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,13 +17,28 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Album
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.Forest
+import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.automirrored.filled.LibraryBooks
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
@@ -29,36 +47,67 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.dndsound.R
 import com.example.dndsound.core.ambience.AmbienceState
+import com.example.dndsound.core.model.Bus
 import com.example.dndsound.core.model.Environment
 import com.example.dndsound.core.model.LayerKind
-import com.example.dndsound.core.model.Mood
 import com.example.dndsound.core.model.MusicMode
 import com.example.dndsound.core.model.TimeOfDay
 import com.example.dndsound.core.model.Weather
+import com.example.dndsound.core.oneshot.OneShotDisplay
 import com.example.dndsound.core.oneshot.OneShotState
 import com.example.dndsound.core.repo.Library
 import com.example.dndsound.core.repo.ScanState
 import com.example.dndsound.core.wheel.WheelMath
+import com.example.dndsound.ui.theme.AppBackdrop
 import com.example.dndsound.ui.wheel.MoodWheel
 
+/** Panels of the main screen; the label/icon pair feeds chips and the rail. */
+private enum class Section { WHEEL, AMBIENCE, SOUNDS, MIXER, LIBRARY }
+
+/** Window layout buckets; mapped from the adaptive WindowSizeClass in MainActivity. */
+enum class LayoutMode { COMPACT, MEDIUM, EXPANDED }
+
+private val Section.labelRes: Int
+    get() = when (this) {
+        Section.WHEEL -> R.string.section_wheel
+        Section.AMBIENCE -> R.string.section_ambience
+        Section.SOUNDS -> R.string.section_sounds
+        Section.MIXER -> R.string.section_mixer
+        Section.LIBRARY -> R.string.section_library
+    }
+
+private val Section.icon: ImageVector
+    get() = when (this) {
+        Section.WHEEL -> Icons.Filled.Album
+        Section.AMBIENCE -> Icons.Filled.Forest
+        Section.SOUNDS -> Icons.Filled.GraphicEq
+        Section.MIXER -> Icons.Filled.Tune
+        Section.LIBRARY -> Icons.AutoMirrored.Filled.LibraryBooks
+    }
+
 /**
- * Stage 6 screen: mood wheel, ambience, one-shot sounds and the library
- * debug listing behind section toggles. The full three-panel layout replaces
- * this in stage 7.
+ * Adaptive main screen (stage 7):
+ *  - compact: title + chip row, one panel at a time;
+ *  - medium:  navigation rail + one panel;
+ *  - expanded: navigation rail + the three audio panels side by side
+ *    (mixer and library open as a single panel).
  */
 @Composable
-fun MainScreen(viewModel: MainViewModel) {
+fun MainScreen(viewModel: MainViewModel, layoutMode: LayoutMode) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val library by viewModel.library.collectAsStateWithLifecycle()
     val scanState by viewModel.scanState.collectAsStateWithLifecycle()
@@ -78,92 +127,309 @@ fun MainScreen(viewModel: MainViewModel) {
     }
 
     var section by rememberSaveable { mutableStateOf(Section.WHEEL) }
+    val compact = layoutMode == LayoutMode.COMPACT
+    val expanded = layoutMode == LayoutMode.EXPANDED
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .windowInsetsPadding(WindowInsets.safeDrawing)
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+            .background(AppBackdrop)
+            .windowInsetsPadding(WindowInsets.safeDrawing),
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(
-                selected = section == Section.WHEEL,
-                onClick = { section = Section.WHEEL },
-                label = { Text(stringResource(R.string.section_wheel)) },
-            )
-            FilterChip(
-                selected = section == Section.AMBIENCE,
-                onClick = { section = Section.AMBIENCE },
-                label = { Text(stringResource(R.string.section_ambience)) },
-            )
-            FilterChip(
-                selected = section == Section.SOUNDS,
-                onClick = { section = Section.SOUNDS },
-                label = { Text(stringResource(R.string.section_sounds)) },
-            )
-            FilterChip(
-                selected = section == Section.LIBRARY,
-                onClick = { section = Section.LIBRARY },
-                label = { Text(stringResource(R.string.section_library)) },
-            )
+        AppHeader(onToggleTheme = viewModel::toggleTheme)
+        when {
+            compact -> {
+                SectionChips(selected = section, onSelect = { section = it })
+                Box(modifier = Modifier.weight(1f)) {
+                    MainPanel(
+                        section = section,
+                        viewModel = viewModel,
+                        settings = settings,
+                        library = library,
+                        scanState = scanState,
+                        music = music,
+                        ambience = ambience,
+                        oneShots = oneShots,
+                        favorites = favoriteOneShots,
+                        liveMarker = liveMarker,
+                        onChangeFolder = { folderPicker.launch(null) },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+            }
+
+            else -> Row(modifier = Modifier.weight(1f)) {
+                AppRail(selected = section, onSelect = { section = it })
+                if (expanded && section != Section.MIXER && section != Section.LIBRARY) {
+                    Row(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        MainPanel(
+                            section = Section.WHEEL,
+                            viewModel = viewModel,
+                            settings = settings,
+                            library = library,
+                            scanState = scanState,
+                            music = music,
+                            ambience = ambience,
+                            oneShots = oneShots,
+                            favorites = favoriteOneShots,
+                            liveMarker = liveMarker,
+                            onChangeFolder = { folderPicker.launch(null) },
+                            modifier = Modifier.weight(1f),
+                        )
+                        MainPanel(
+                            section = Section.AMBIENCE,
+                            viewModel = viewModel,
+                            settings = settings,
+                            library = library,
+                            scanState = scanState,
+                            music = music,
+                            ambience = ambience,
+                            oneShots = oneShots,
+                            favorites = favoriteOneShots,
+                            liveMarker = liveMarker,
+                            onChangeFolder = { folderPicker.launch(null) },
+                            modifier = Modifier.weight(1f),
+                        )
+                        MainPanel(
+                            section = Section.SOUNDS,
+                            viewModel = viewModel,
+                            settings = settings,
+                            library = library,
+                            scanState = scanState,
+                            music = music,
+                            ambience = ambience,
+                            oneShots = oneShots,
+                            favorites = favoriteOneShots,
+                            liveMarker = liveMarker,
+                            onChangeFolder = { folderPicker.launch(null) },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                } else {
+                    Box(modifier = Modifier.weight(1f)) {
+                        MainPanel(
+                            section = section,
+                            viewModel = viewModel,
+                            settings = settings,
+                            library = library,
+                            scanState = scanState,
+                            music = music,
+                            ambience = ambience,
+                            oneShots = oneShots,
+                            favorites = favoriteOneShots,
+                            liveMarker = liveMarker,
+                            onChangeFolder = { folderPicker.launch(null) },
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
+                }
+            }
         }
-        when (section) {
-            Section.WHEEL -> WheelSection(
-                music = music,
-                liveMarker = liveMarker,
-                onWheelDrag = viewModel::onWheelDrag,
-                onModeChange = viewModel::setMode,
-                onNext = viewModel::nextTrack,
-                onPause = viewModel::pause,
-                onResume = viewModel::resume,
-            )
+    }
+}
 
-            Section.AMBIENCE -> AmbienceSection(
-                library = library,
-                ambience = ambience,
-                onSelectEnvironment = viewModel::selectEnvironment,
-                onTimeOfDay = viewModel::setTimeOfDay,
-                onLayerEnabled = viewModel::setLayerEnabled,
-                onLayerGain = viewModel::setLayerGain,
-                onWeather = viewModel::setWeather,
-                onStop = viewModel::pauseAmbience,
-                onResume = viewModel::resumeAmbience,
-            )
+/** One panel of [section], with everything that panel needs to render. */
+@Composable
+private fun MainPanel(
+    section: Section,
+    viewModel: MainViewModel,
+    settings: com.example.dndsound.core.repo.AppSettings,
+    library: Library,
+    scanState: ScanState,
+    music: com.example.dndsound.core.music.MusicState,
+    ambience: AmbienceState,
+    oneShots: OneShotState,
+    favorites: Set<String>,
+    liveMarker: com.example.dndsound.core.model.WheelPoint?,
+    onChangeFolder: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    when (section) {
+        Section.WHEEL -> WheelPanel(
+            music = music,
+            liveMarker = liveMarker,
+            onWheelDrag = viewModel::onWheelDrag,
+            onModeChange = viewModel::setMode,
+            onPause = viewModel::pause,
+            onResume = viewModel::resume,
+            modifier = modifier,
+        )
 
-            Section.SOUNDS -> SoundsSection(
-                state = oneShots,
-                favorites = favoriteOneShots,
-                onPlay = viewModel::playOneShot,
-                onStopAll = viewModel::stopAllOneShots,
-                onToggleFavorite = viewModel::toggleOneShotFavorite,
-            )
+        Section.AMBIENCE -> AmbiencePanel(
+            library = library,
+            ambience = ambience,
+            onSelectEnvironment = viewModel::selectEnvironment,
+            onTimeOfDay = viewModel::setTimeOfDay,
+            onLayerEnabled = viewModel::setLayerEnabled,
+            onLayerGain = viewModel::setLayerGain,
+            onWeather = viewModel::setWeather,
+            onStop = viewModel::pauseAmbience,
+            onResume = viewModel::resumeAmbience,
+            modifier = modifier,
+        )
 
-            Section.LIBRARY -> LibraryContent(
-                library = library,
-                scanState = scanState,
-                onRescan = viewModel::rescan,
-                onChangeFolder = { folderPicker.launch(null) },
-                onCreateStructure = viewModel::createFolderStructure,
-                onDisconnect = viewModel::disconnectFolder,
-                modifier = Modifier.fillMaxWidth(),
+        Section.SOUNDS -> SoundsPanel(
+            state = oneShots,
+            favorites = favorites,
+            onPlay = viewModel::playOneShot,
+            onStopAll = viewModel::stopAllOneShots,
+            onToggleFavorite = viewModel::toggleOneShotFavorite,
+            modifier = modifier,
+        )
+
+        Section.MIXER -> MixerPanel(
+            masterDb = settings.masterDb,
+            musicDb = settings.musicBusDb,
+            ambienceDb = settings.ambienceBusDb,
+            sfxDb = settings.sfxBusDb,
+            onBusGain = viewModel::setBusGain,
+            modifier = modifier,
+        )
+
+        Section.LIBRARY -> LibraryContent(
+            library = library,
+            scanState = scanState,
+            onRescan = viewModel::rescan,
+            onChangeFolder = onChangeFolder,
+            onCreateStructure = viewModel::createFolderStructure,
+            onDisconnect = viewModel::disconnectFolder,
+            modifier = modifier,
+        )
+    }
+}
+
+@Composable
+private fun AppHeader(onToggleTheme: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+    ) {
+        Text(
+            stringResource(R.string.app_name),
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+        )
+        Spacer(Modifier.weight(1f))
+        IconButton(onClick = onToggleTheme) {
+            Icon(
+                Icons.Filled.DarkMode,
+                contentDescription = stringResource(R.string.theme_toggle),
             )
         }
     }
 }
 
-private enum class Section { WHEEL, AMBIENCE, SOUNDS, LIBRARY }
+@Composable
+private fun SectionChips(selected: Section, onSelect: (Section) -> Unit) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp),
+    ) {
+        Section.entries.forEach { s ->
+            FilterChip(
+                selected = selected == s,
+                onClick = { onSelect(s) },
+                label = { Text(stringResource(s.labelRes)) },
+                modifier = Modifier.heightIn(min = 48.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun AppRail(selected: Section, onSelect: (Section) -> Unit) {
+    NavigationRail {
+        Section.entries.forEach { s ->
+            NavigationRailItem(
+                selected = selected == s,
+                onClick = { onSelect(s) },
+                icon = {
+                    Icon(s.icon, contentDescription = stringResource(s.labelRes))
+                },
+                label = { Text(stringResource(s.labelRes)) },
+            )
+        }
+    }
+}
+
+/** Mixer bus faders; values live in [com.example.dndsound.core.repo.AppSettings]. */
+@Composable
+private fun MixerPanel(
+    masterDb: Float,
+    musicDb: Float,
+    ambienceDb: Float,
+    sfxDb: Float,
+    onBusGain: (Bus, Float) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        BusRow(R.string.bus_master, masterDb) { onBusGain(Bus.MASTER, it) }
+        BusRow(R.string.bus_music, musicDb) { onBusGain(Bus.MUSIC, it) }
+        BusRow(R.string.bus_ambience, ambienceDb) { onBusGain(Bus.AMBIENCE, it) }
+        BusRow(R.string.bus_sfx, sfxDb) { onBusGain(Bus.SFX, it) }
+    }
+}
+
+@Composable
+private fun BusRow(labelRes: Int, gainDb: Float, onChange: (Float) -> Unit) {
+    // Drag locally; commit once on release so DataStore and the engines get a
+    // single, settled value instead of one write per frame.
+    var dragValue by rememberSaveable(gainDb) { mutableFloatStateOf(gainDb) }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp),
+    ) {
+        Text(stringResource(labelRes), modifier = Modifier.width(112.dp))
+        Slider(
+            value = dragValue.coerceIn(-30f, 6f),
+            onValueChange = { dragValue = it },
+            onValueChangeFinished = { onChange(dragValue) },
+            valueRange = -30f..6f,
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 8.dp),
+        )
+        Text(
+            stringResource(R.string.bus_gain_value, dragValue),
+            textAlign = TextAlign.End,
+            modifier = Modifier.width(72.dp),
+        )
+    }
+}
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun SoundsSection(
+private fun SoundsPanel(
     state: OneShotState,
     favorites: Set<String>,
     onPlay: (String) -> Unit,
     onStopAll: () -> Unit,
     onToggleFavorite: (String) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(
+        modifier = modifier
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
         if (state.groups.isEmpty()) {
             Text(
                 stringResource(R.string.sounds_empty),
@@ -195,10 +461,11 @@ private fun SoundsSection(
             }
         }
         val trimmedQuery = query.trim()
+        val sorted = OneShotDisplay.sortedForDisplay(state.groups, favorites)
         val filtered = if (trimmedQuery.isEmpty()) {
-            state.groups
+            sorted
         } else {
-            state.groups.filter { it.name.contains(trimmedQuery, ignoreCase = true) }
+            sorted.filter { it.name.contains(trimmedQuery, ignoreCase = true) }
         }
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -251,7 +518,7 @@ private fun SoundsSection(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun AmbienceSection(
+private fun AmbiencePanel(
     library: Library,
     ambience: AmbienceState,
     onSelectEnvironment: (Environment?, TimeOfDay) -> Unit,
@@ -261,8 +528,14 @@ private fun AmbienceSection(
     onWeather: (Weather) -> Unit,
     onStop: () -> Unit,
     onResume: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(
+        modifier = modifier
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
         val environments = library.environments
         if (environments.isEmpty()) {
             Text(
@@ -289,20 +562,26 @@ private fun AmbienceSection(
                         }
                     },
                     label = { Text(env.name) },
+                    modifier = Modifier.heightIn(min = 48.dp),
                 )
             }
         }
         if (ambience.environmentId != null) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(top = 8.dp),
+            ) {
                 FilterChip(
                     selected = ambience.timeOfDay == TimeOfDay.DAY,
                     onClick = { onTimeOfDay(TimeOfDay.DAY) },
                     label = { Text(stringResource(R.string.ambience_day)) },
+                    modifier = Modifier.heightIn(min = 48.dp),
                 )
                 FilterChip(
                     selected = ambience.timeOfDay == TimeOfDay.NIGHT,
                     onClick = { onTimeOfDay(TimeOfDay.NIGHT) },
                     label = { Text(stringResource(R.string.ambience_night)) },
+                    modifier = Modifier.heightIn(min = 48.dp),
                 )
             }
             Text(
@@ -316,6 +595,7 @@ private fun AmbienceSection(
                         selected = ambience.weather == weather,
                         onClick = { onWeather(weather) },
                         label = { Text(weatherLabel(weather)) },
+                        modifier = Modifier.heightIn(min = 48.dp),
                     )
                 }
             }
@@ -350,7 +630,10 @@ private fun AmbienceSection(
                     }
                 }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 12.dp)) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(top = 12.dp),
+            ) {
                 if (ambience.playing) {
                     Button(onClick = onStop) { Text(stringResource(R.string.music_pause)) }
                 } else {
@@ -378,41 +661,50 @@ private fun weatherLabel(weather: Weather): String = when (weather) {
 }
 
 @Composable
-private fun WheelSection(
+private fun WheelPanel(
     music: com.example.dndsound.core.music.MusicState,
     liveMarker: com.example.dndsound.core.model.WheelPoint?,
     onWheelDrag: (com.example.dndsound.core.model.WheelPoint) -> Unit,
     onModeChange: (MusicMode) -> Unit,
-    onNext: () -> Unit,
     onPause: () -> Unit,
     onResume: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(
+        modifier = modifier
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(
                 selected = music.mode == MusicMode.EXPLORATION,
                 onClick = { onModeChange(MusicMode.EXPLORATION) },
                 label = { Text(stringResource(R.string.mode_exploration)) },
+                modifier = Modifier.heightIn(min = 48.dp),
             )
             FilterChip(
                 selected = music.mode == MusicMode.BATTLE,
                 onClick = { onModeChange(MusicMode.BATTLE) },
                 label = { Text(stringResource(R.string.mode_battle)) },
+                modifier = Modifier.heightIn(min = 48.dp),
             )
         }
         MoodWheel(
             marker = liveMarker ?: music.anchor,
             mode = music.mode,
             onPointChange = onWheelDrag,
+            // Wide panels would otherwise stretch the wheel to absurd sizes.
             modifier = Modifier
                 .fillMaxWidth(0.92f)
+                .widthIn(max = 440.dp)
                 .padding(top = 8.dp),
         )
         TrackStatusLine(music)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 12.dp)) {
-            OutlinedButton(onClick = onNext) {
-                Text(stringResource(R.string.music_next))
-            }
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(top = 12.dp),
+        ) {
             if (music.playing) {
                 Button(onClick = onPause) {
                     Text(stringResource(R.string.music_pause))
@@ -474,6 +766,7 @@ private fun OnboardingContent(onPickFolder: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(AppBackdrop)
             .windowInsetsPadding(WindowInsets.safeDrawing)
             .padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -516,7 +809,7 @@ private fun LibraryContent(
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
-        modifier = modifier,
+        modifier = modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item { ScanStatusBar(scanState) }
