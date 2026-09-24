@@ -1,5 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">DnDSound</string>
-    <string name="scaffold_hint">Звуковая атмосфера для D&amp;D. Библиотека появится на следующем этапе — выберите папку с музыкой и звуками.</string>
+
+    <!-- Onboarding (stage 3) -->
+    <string name="onboarding_title">Добро пожаловать в DnDSound</string>
+    <string name="onboarding_body">Укажите папку с вашей библиотекой музыки и звуков. Приложение читает только выбранные файлы и работает полностью офлайн — никаких разрешений на интернет у него нет.\n\nОжидаемая структура: music/&lt;настроение&gt;, ambience/&lt;окружение&gt;, sounds/&lt;категория&gt;, weather/&lt;тип&gt;. Подробности — в docs/CONTENT.md.</string>
+    <string name="onboarding_pick_folder">Выбрать папку библиотеки</string>
+    <string name="onboarding_create_hint">Можно выбрать пустую папку — кнопка «Создать структуру» сделает нужные подпапки.</string>
+
+    <!-- Library debug screen (stage 3) -->
+    <string name="library_rescan">Пересканировать</string>
+    <string name="library_change_folder">Сменить папку</string>
+    <string name="library_create_structure">Создать структуру</string>
+    <string name="library_disconnect">Забыть папку</string>
+    <string name="library_scanning">Индексация…</string>
+    <string name="library_idle">Ожидание сканирования</string>
+    <string name="library_permission_lost">Доступ к папке потерян. Выберите её заново.</string>
+    <string name="library_failed">Ошибка сканирования: %1$s</string>
+    <string name="library_files_count">Аудиофайлов: %1$d</string>
+    <string name="library_warnings_count">Замечаний: %1$d</string>
+    <string name="library_empty">Библиотека пуста: аудиофайлы не найдены.</string>
+    <string name="library_section_tracks">Музыка (%1$d)</string>
+    <string name="library_section_environments">Окружения (%1$d)</string>
+    <string name="library_section_one_shots">Звуки (%1$d)</string>
+    <string name="library_section_weather">Погода (%1$d)</string>
+    <string name="library_more_items">…и ещё %1$d</string>
 </resources>

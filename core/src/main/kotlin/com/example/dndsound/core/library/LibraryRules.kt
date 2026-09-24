@@ -3,6 +3,7 @@ package com.example.dndsound.core.library
 import com.example.dndsound.core.model.EnvironmentCategory
 import com.example.dndsound.core.model.Mood
 import com.example.dndsound.core.model.SoundCategory
+import com.example.dndsound.core.model.Weather
 import com.example.dndsound.core.model.WheelPoint
 
 /**
@@ -13,10 +14,16 @@ object LibraryRules {
 
     val AUDIO_EXTENSIONS = setOf("ogg", "oga", "opus", "mp3", "flac", "wav", "m4a")
 
+    /** Only used for optional environment covers (cover.jpg/png/webp). */
+    val IMAGE_EXTENSIONS = setOf("jpg", "jpeg", "png", "webp")
+
     private val SUFFIX_REGEX = Regex("_\\d{1,3}$")
 
     fun isAudioFile(name: String): Boolean =
         name.substringAfterLast('.', "").lowercase() in AUDIO_EXTENSIONS
+
+    fun isImageFile(name: String): Boolean =
+        name.substringAfterLast('.', "").lowercase() in IMAGE_EXTENSIONS
 
     /** File name without extension: "goblin_01.ogg" -> "goblin_01". */
     fun withoutExtension(name: String): String =
@@ -77,4 +84,10 @@ object LibraryRules {
     /** Folder name to one-shot category; unknown folders become CUSTOM. */
     fun soundCategory(folder: String): SoundCategory =
         SOUND_CATEGORIES[folder.lowercase()] ?: SoundCategory.CUSTOM
+
+    /** Weather subfolder name ("rain") to Weather; NONE is not a folder name. */
+    fun weatherFromFolder(folder: String): Weather? =
+        Weather.entries.firstOrNull {
+            it != Weather.NONE && it.name.equals(folder, ignoreCase = true)
+        }
 }

@@ -1,5 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">DnDSound</string>
-    <string name="scaffold_hint">Sound atmosphere for D&amp;D. The library picker arrives in the next stage — choose a folder with your music and sounds.</string>
+
+    <!-- Onboarding (stage 3) -->
+    <string name="onboarding_title">Welcome to DnDSound</string>
+    <string name="onboarding_body">Point the app at a folder with your music and sounds. It reads only the files you pick and works fully offline — it has no INTERNET permission at all.\n\nExpected layout: music/&lt;mood&gt;, ambience/&lt;environment&gt;, sounds/&lt;category&gt;, weather/&lt;type&gt;. See docs/CONTENT.md for details.</string>
+    <string name="onboarding_pick_folder">Pick library folder</string>
+    <string name="onboarding_create_hint">You can pick an empty folder — the “Create structure” button will make the subfolders for you.</string>
+
+    <!-- Library debug screen (stage 3) -->
+    <string name="library_rescan">Rescan</string>
+    <string name="library_change_folder">Change folder</string>
+    <string name="library_create_structure">Create structure</string>
+    <string name="library_disconnect">Forget folder</string>
+    <string name="library_scanning">Indexing…</string>
+    <string name="library_idle">Waiting for scan</string>
+    <string name="library_permission_lost">Folder access was lost. Pick the folder again.</string>
+    <string name="library_failed">Scan failed: %1$s</string>
+    <string name="library_files_count">Audio files: %1$d</string>
+    <string name="library_warnings_count">Warnings: %1$d</string>
+    <string name="library_empty">The library is empty: no audio files found.</string>
+    <string name="library_section_tracks">Music (%1$d)</string>
+    <string name="library_section_environments">Environments (%1$d)</string>
+    <string name="library_section_one_shots">Sounds (%1$d)</string>
+    <string name="library_section_weather">Weather (%1$d)</string>
+    <string name="library_more_items">…and %1$d more</string>
 </resources>

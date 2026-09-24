@@ -5,6 +5,7 @@
          INTERNET permission. See README.md. -->
 
     <application
+        android:name=".DnDSoundApp"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"

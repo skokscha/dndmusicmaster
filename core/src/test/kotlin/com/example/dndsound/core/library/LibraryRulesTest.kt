@@ -3,6 +3,7 @@ package com.example.dndsound.core.library
 import com.example.dndsound.core.model.EnvironmentCategory
 import com.example.dndsound.core.model.Mood
 import com.example.dndsound.core.model.SoundCategory
+import com.example.dndsound.core.model.Weather
 import com.example.dndsound.core.model.WheelPoint
 import com.example.dndsound.core.wheel.WheelMath
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -73,6 +74,24 @@ class LibraryRulesTest {
         assertEquals(EnvironmentCategory.CUSTOM, LibraryRules.environmentCategory("my_world"))
         assertEquals(SoundCategory.CREATURE, LibraryRules.soundCategory("creature"))
         assertEquals(SoundCategory.CUSTOM, LibraryRules.soundCategory("weird"))
+    }
+
+    @Test
+    fun `weather folders map to weather types`() {
+        assertEquals(Weather.RAIN, LibraryRules.weatherFromFolder("rain"))
+        assertEquals(Weather.STORM, LibraryRules.weatherFromFolder("storm"))
+        assertEquals(Weather.WIND, LibraryRules.weatherFromFolder("Wind"))
+        assertEquals(Weather.SNOW, LibraryRules.weatherFromFolder("snow"))
+        assertNull(LibraryRules.weatherFromFolder("none"))
+        assertNull(LibraryRules.weatherFromFolder("fog"))
+    }
+
+    @Test
+    fun `image files are detected for covers`() {
+        assertTrue(LibraryRules.isImageFile("cover.PNG"))
+        assertTrue(LibraryRules.isImageFile("cover.jpeg"))
+        assertFalse(LibraryRules.isImageFile("cover.ogg"))
+        assertFalse(LibraryRules.isImageFile("notes.txt"))
     }
 
     @Test
