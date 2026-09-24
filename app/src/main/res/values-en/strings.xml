@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">DnDSound</string>
+    <string name="scaffold_hint">Sound atmosphere for D&amp;D. The library picker arrives in the next stage — choose a folder with your music and sounds.</string>
+</resources>

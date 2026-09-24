@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">DnDSound</string>
+    <string name="scaffold_hint">Звуковая атмосфера для D&amp;D. Библиотека появится на следующем этапе — выберите папку с музыкой и звуками.</string>
+</resources>

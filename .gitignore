@@ -1,0 +1,29 @@
+# Gradle
+.gradle/
+build/
+app/build/
+core/build/
+
+# Android Studio / IDE
+.idea/
+*.iml
+captures/
+.externalNativeBuild/
+.cxx/
+
+# SDK location is machine-specific
+local.properties
+
+# Keystore material must never be committed
+*.jks
+*.keystore
+keystore.properties
+
+# User audio library stays out of the repository
+dev-samples/**/*.ogg
+dev-samples/**/*.mp3
+dev-samples/**/*.wav
+!dev-samples/.gitkeep
+
+# Misc
+.DS_Store
