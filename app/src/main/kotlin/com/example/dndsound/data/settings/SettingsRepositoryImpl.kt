@@ -40,6 +40,7 @@ class SettingsRepositoryImpl(private val context: Context) : SettingsRepository 
         languageTag = prefs[KEY_LANGUAGE] ?: "ru",
         theme = prefs[KEY_THEME]?.let { runCatching { AppSettings.Theme.valueOf(it) }.getOrNull() }
             ?: AppSettings.Theme.AMBER,
+        highlightEmptyZones = prefs[KEY_HIGHLIGHT_EMPTY_ZONES] ?: true,
         masterDb = prefs[KEY_MASTER_DB] ?: 0f,
         musicBusDb = prefs[KEY_MUSIC_BUS_DB] ?: 0f,
         ambienceBusDb = prefs[KEY_AMBIENCE_BUS_DB] ?: 0f,
@@ -59,6 +60,7 @@ class SettingsRepositoryImpl(private val context: Context) : SettingsRepository 
         prefs[KEY_PAUSE_ON_UNPLUG] = s.pauseOnHeadphonesDisconnected
         prefs[KEY_LANGUAGE] = s.languageTag
         prefs[KEY_THEME] = s.theme.name
+        prefs[KEY_HIGHLIGHT_EMPTY_ZONES] = s.highlightEmptyZones
         prefs[KEY_MASTER_DB] = s.masterDb
         prefs[KEY_MUSIC_BUS_DB] = s.musicBusDb
         prefs[KEY_AMBIENCE_BUS_DB] = s.ambienceBusDb
@@ -77,6 +79,7 @@ class SettingsRepositoryImpl(private val context: Context) : SettingsRepository 
         val KEY_PAUSE_ON_UNPLUG = booleanPreferencesKey("pause_on_headphones_disconnect")
         val KEY_LANGUAGE = stringPreferencesKey("language_tag")
         val KEY_THEME = stringPreferencesKey("theme")
+        val KEY_HIGHLIGHT_EMPTY_ZONES = booleanPreferencesKey("highlight_empty_zones")
         val KEY_MASTER_DB = floatPreferencesKey("master_db")
         val KEY_MUSIC_BUS_DB = floatPreferencesKey("music_bus_db")
         val KEY_AMBIENCE_BUS_DB = floatPreferencesKey("ambience_bus_db")

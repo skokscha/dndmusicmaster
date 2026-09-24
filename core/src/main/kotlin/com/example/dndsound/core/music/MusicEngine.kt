@@ -7,6 +7,10 @@ import com.example.dndsound.core.mixer.GainMath
 import com.example.dndsound.core.model.MusicMode
 import com.example.dndsound.core.model.Track
 import com.example.dndsound.core.model.WheelPoint
+import com.example.dndsound.core.wheel.Selection
+import com.example.dndsound.core.wheel.WheelConfig
+import com.example.dndsound.core.wheel.WheelZone
+import com.example.dndsound.core.wheel.WheelZones
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -29,14 +33,22 @@ import kotlinx.coroutines.launch
  *
  * Wheel input is debounced: [setWheelTarget] waits for [debounceMs] of
  * stillness before committing, so dragging across the wheel does not spam
- * track switches. The KEEP_RADIUS hysteresis lives in [WheelMusicController].
+ * track switches. The wheel is divided into 25 zones: while the target zone
+ * (hysteresis-stable, see [WheelZones.zoneAtWithHysteresis]) does not change,
+ * the track keeps playing even when the marker moves inside the zone.
  */
 class MusicEngine(
     private val scope: CoroutineScope,
     playerFactory: () -> PlayerHandle,
-    private val selectTrack: suspend (point: WheelPoint, mode: MusicMode, recent: List<String>) -> Track?,
-    /** Auto-advance at track end; must stay inside the current track's sector. */
-    private val selectNextTrack: suspend (current: Track, recent: List<String>) -> Track? = { current, _ -> current },
+    private val selectTrack: suspend (
+        target: WheelZone,
+        point: WheelPoint,
+        mode: MusicMode,
+        recent: List<String>,
+    ) -> Selection?,
+    /** Auto-advance at track end; must stay inside the current track's own zone. */
+    private val selectNextTrack: suspend (current: Track, recent: List<String>) -> Selection? =
+        { current, _ -> current.position?.let { Selection(current, WheelZones.zoneAt(it), false) } },
     private val crossfadeMs: Long = 4_000,
     private val debounceMs: Long = 600,
     private val rampStepMs: Long = 25,
@@ -62,6 +74,7 @@ class MusicEngine(
     private val loadedTrack = arrayOfNulls<Track>(2)
     private var active = -1
     private val anchors = mutableMapOf<MusicMode, WheelPoint?>()
+    private val targetZones = mutableMapOf<MusicMode, WheelZone?>()
     private var mode = MusicMode.EXPLORATION
     private val recent = ArrayDeque<String>()
     private var masterDb = 0f
@@ -69,6 +82,7 @@ class MusicEngine(
     private var duckDb: Float? = null
     private val fader = FadeCoordinator(rampStepMs)
     private var debounceJob: Job? = null
+    private val config = WheelConfig()
 
     init {
         players.forEachIndexed { index, handle ->
@@ -143,39 +157,50 @@ class MusicEngine(
     private suspend fun handleCommand(command: Command) {
         when (command) {
             is Command.Wheel -> {
-                val decision = WheelMusicController.decide(
-                    anchor = anchors[command.mode],
-                    target = command.point,
-                    requestedMode = command.mode,
-                    activeMode = mode,
-                )
-                if (decision is WheelMusicController.Decision.Switch) {
-                    anchors[command.mode] = decision.anchor
+                val previousZone = targetZones[command.mode]
+                val zone = WheelZones.zoneAtWithHysteresis(command.point, previousZone, config)
+                targetZones[command.mode] = zone
+                anchors[command.mode] = command.point
+                if (command.mode != mode || zone != previousZone) {
                     mode = command.mode
-                    advanceTo(decision.anchor)
+                    advanceTo(command.point, zone)
+                } else {
+                    // Same zone: keep the track, just refresh the marker.
+                    _state.update { it.copy(anchor = command.point, targetZone = zone) }
                 }
             }
 
             is Command.SetMode -> {
                 if (command.mode != mode) {
                     mode = command.mode
-                    advanceTo(anchors[mode] ?: WheelPoint.CENTER)
+                    val point = anchors[mode] ?: WheelPoint.CENTER
+                    val zone = WheelZones.zoneAtWithHysteresis(point, targetZones[mode], config)
+                    targetZones[mode] = zone
+                    advanceTo(point, zone)
                 }
             }
 
             Command.Next -> {
                 val current = if (active >= 0) loadedTrack[active] else null
                 if (current == null) {
-                    advanceTo(anchors[mode] ?: WheelPoint.CENTER)
+                    val point = anchors[mode] ?: WheelPoint.CENTER
+                    advanceTo(point, targetZones[mode] ?: WheelZones.zoneAt(point, config))
                 } else {
-                    // Auto-advance stays inside the current track's sector.
-                    val next = selectNextTrack(current, recent.toList())
-                    if (next != null) {
-                        crossfadeTo(next, current.position)
+                    // Auto-advance stays inside the current track's own zone.
+                    val selection = selectNextTrack(current, recent.toList())
+                    if (selection != null) {
+                        crossfadeTo(
+                            track = selection.track,
+                            anchorPoint = current.position ?: WheelPoint.CENTER,
+                            playingZone = selection.playingZone,
+                            isFallback = selection.isFallback,
+                        )
                     } else {
-                        // The sector emptied under us (e.g. after a rescan).
+                        // The zone emptied under us (e.g. after a rescan).
                         fadeEverythingOut()
-                        _state.update { it.copy(playing = false, currentTrack = null, crossfading = false) }
+                        _state.update {
+                            it.copy(playing = false, currentTrack = null, crossfading = false, playingZone = null)
+                        }
                     }
                 }
             }
@@ -199,19 +224,33 @@ class MusicEngine(
         }
     }
 
-    private suspend fun advanceTo(point: WheelPoint) {
-        val track = selectTrack(point, mode, recent.toList())
-        if (track == null) {
+    private suspend fun advanceTo(point: WheelPoint, targetZone: WheelZone) {
+        val selection = selectTrack(targetZone, point, mode, recent.toList())
+        if (selection == null) {
             fadeEverythingOut()
             _state.update {
-                it.copy(playing = false, currentTrack = null, anchor = point, mode = mode, crossfading = false)
+                it.copy(
+                    playing = false,
+                    currentTrack = null,
+                    anchor = point,
+                    mode = mode,
+                    crossfading = false,
+                    targetZone = targetZone,
+                    playingZone = null,
+                    isFallback = false,
+                )
             }
             return
         }
-        crossfadeTo(track, point)
+        crossfadeTo(selection.track, point, selection.playingZone, selection.isFallback)
     }
 
-    private suspend fun crossfadeTo(track: Track, anchorPoint: WheelPoint) {
+    private suspend fun crossfadeTo(
+        track: Track,
+        anchorPoint: WheelPoint,
+        playingZone: WheelZone,
+        isFallback: Boolean,
+    ) {
         pushRecent(track.id)
         val nextIndex = if (active < 0) 0 else 1 - active
         val incoming = players[nextIndex]
@@ -232,6 +271,9 @@ class MusicEngine(
                 mode = mode,
                 crossfading = outgoing != null,
                 error = null,
+                targetZone = targetZones[mode],
+                playingZone = playingZone,
+                isFallback = isFallback,
             )
         }
         val inTarget = GainMath.dbToLinear(masterDb) *
@@ -292,7 +334,7 @@ class MusicEngine(
         active = -1
         players.forEach { it.release() }
         _state.update {
-            MusicState(mode = mode, anchor = it.anchor)
+            MusicState(mode = mode, anchor = it.anchor, targetZone = it.targetZone)
         }
     }
 

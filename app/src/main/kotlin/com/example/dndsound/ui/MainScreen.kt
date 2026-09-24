@@ -30,8 +30,12 @@ import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Forest
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.automirrored.filled.LibraryBooks
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -42,6 +46,7 @@ import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -49,6 +54,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -64,14 +70,19 @@ import com.example.dndsound.core.ambience.AmbienceState
 import com.example.dndsound.core.model.Bus
 import com.example.dndsound.core.model.Environment
 import com.example.dndsound.core.model.LayerKind
+import com.example.dndsound.core.model.Mood
 import com.example.dndsound.core.model.MusicMode
 import com.example.dndsound.core.model.TimeOfDay
+import com.example.dndsound.core.model.Track
 import com.example.dndsound.core.model.Weather
 import com.example.dndsound.core.oneshot.OneShotDisplay
 import com.example.dndsound.core.oneshot.OneShotState
 import com.example.dndsound.core.repo.Library
 import com.example.dndsound.core.repo.ScanState
-import com.example.dndsound.core.wheel.WheelMath
+import com.example.dndsound.core.wheel.Tier
+import com.example.dndsound.core.wheel.WheelZone
+import com.example.dndsound.core.wheel.WheelZonePalette
+import com.example.dndsound.core.wheel.WheelZones
 import com.example.dndsound.ui.theme.AppBackdrop
 import com.example.dndsound.ui.wheel.MoodWheel
 
@@ -253,6 +264,10 @@ private fun MainPanel(
         Section.WHEEL -> WheelPanel(
             music = music,
             liveMarker = liveMarker,
+            emptyZoneIds = library.tracks
+                .mapNotNull { it.position?.let { point -> WheelZones.zoneAt(point).id } }
+                .toSet(),
+            desaturateEmpty = settings.highlightEmptyZones && library.tracks.isNotEmpty(),
             onWheelDrag = viewModel::onWheelDrag,
             onModeChange = viewModel::setMode,
             onPause = viewModel::pause,
@@ -298,6 +313,7 @@ private fun MainPanel(
             onChangeFolder = onChangeFolder,
             onCreateStructure = viewModel::createFolderStructure,
             onDisconnect = viewModel::disconnectFolder,
+            onChooseZone = viewModel::setTrackZone,
             modifier = modifier,
         )
     }
@@ -377,15 +393,19 @@ private fun MixerPanel(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        BusRow(R.string.bus_master, masterDb) { onBusGain(Bus.MASTER, it) }
-        BusRow(R.string.bus_music, musicDb) { onBusGain(Bus.MUSIC, it) }
-        BusRow(R.string.bus_ambience, ambienceDb) { onBusGain(Bus.AMBIENCE, it) }
-        BusRow(R.string.bus_sfx, sfxDb) { onBusGain(Bus.SFX, it) }
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                BusRow(R.string.bus_master, Icons.Filled.VolumeUp, masterDb) { onBusGain(Bus.MASTER, it) }
+                BusRow(R.string.bus_music, Icons.Filled.MusicNote, musicDb) { onBusGain(Bus.MUSIC, it) }
+                BusRow(R.string.bus_ambience, Icons.Filled.Forest, ambienceDb) { onBusGain(Bus.AMBIENCE, it) }
+                BusRow(R.string.bus_sfx, Icons.Filled.GraphicEq, sfxDb) { onBusGain(Bus.SFX, it) }
+            }
+        }
     }
 }
 
 @Composable
-private fun BusRow(labelRes: Int, gainDb: Float, onChange: (Float) -> Unit) {
+private fun BusRow(labelRes: Int, icon: ImageVector, gainDb: Float, onChange: (Float) -> Unit) {
     // Drag locally; commit once on release so DataStore and the engines get a
     // single, settled value instead of one write per frame.
     var dragValue by rememberSaveable(gainDb) { mutableFloatStateOf(gainDb) }
@@ -395,7 +415,13 @@ private fun BusRow(labelRes: Int, gainDb: Float, onChange: (Float) -> Unit) {
             .fillMaxWidth()
             .padding(vertical = 6.dp),
     ) {
-        Text(stringResource(labelRes), modifier = Modifier.width(112.dp))
+        Icon(
+            icon,
+            contentDescription = stringResource(labelRes),
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(22.dp),
+        )
+        Text(stringResource(labelRes), modifier = Modifier.padding(start = 8.dp))
         Slider(
             value = dragValue.coerceIn(-30f, 6f),
             onValueChange = { dragValue = it },
@@ -606,27 +632,33 @@ private fun AmbiencePanel(
                     style = MaterialTheme.typography.titleSmall,
                     modifier = Modifier.padding(top = 12.dp),
                 )
-                loopLayers.forEach { layer ->
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 2.dp),
-                    ) {
-                        Switch(
-                            checked = layer.enabled,
-                            onCheckedChange = { onLayerEnabled(layer.id, it) },
-                        )
-                        Text(layer.name, modifier = Modifier.padding(start = 8.dp))
-                        Slider(
-                            value = layer.gainDb.coerceIn(-30f, 6f),
-                            onValueChange = { onLayerGain(layer.id, it) },
-                            valueRange = -30f..6f,
-                            enabled = layer.enabled,
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(start = 8.dp),
-                        )
+                Card(modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp)) {
+                    Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
+                        loopLayers.forEach { layer ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 2.dp),
+                            ) {
+                                Switch(
+                                    checked = layer.enabled,
+                                    onCheckedChange = { onLayerEnabled(layer.id, it) },
+                                )
+                                Text(layer.name, modifier = Modifier.width(96.dp))
+                                Slider(
+                                    value = layer.gainDb.coerceIn(-30f, 6f),
+                                    onValueChange = { onLayerGain(layer.id, it) },
+                                    valueRange = -30f..6f,
+                                    enabled = layer.enabled,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(start = 8.dp),
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -664,6 +696,8 @@ private fun weatherLabel(weather: Weather): String = when (weather) {
 private fun WheelPanel(
     music: com.example.dndsound.core.music.MusicState,
     liveMarker: com.example.dndsound.core.model.WheelPoint?,
+    emptyZoneIds: Set<String>,
+    desaturateEmpty: Boolean,
     onWheelDrag: (com.example.dndsound.core.model.WheelPoint) -> Unit,
     onModeChange: (MusicMode) -> Unit,
     onPause: () -> Unit,
@@ -693,12 +727,41 @@ private fun WheelPanel(
         MoodWheel(
             marker = liveMarker ?: music.anchor,
             mode = music.mode,
+            emptyZoneIds = emptyZoneIds,
+            desaturateEmpty = desaturateEmpty,
             onPointChange = onWheelDrag,
             // Wide panels would otherwise stretch the wheel to absurd sizes.
             modifier = Modifier
                 .fillMaxWidth(0.92f)
                 .widthIn(max = 440.dp)
                 .padding(top = 8.dp),
+        )
+        // Zone signature: small "mode · sector" line, large zone name.
+        val signatureZone = (liveMarker ?: music.anchor)
+            ?.let { WheelZones.zoneAt(it) }
+            ?: music.targetZone
+        signatureZone?.let { zone ->
+            val modeLabel = stringResource(
+                if (music.mode == MusicMode.BATTLE) R.string.mode_battle else R.string.mode_exploration,
+            )
+            Text(
+                zoneSubtitle(zone, modeLabel),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 10.dp),
+            )
+            Text(
+                zoneName(zone),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+            )
+        }
+        Text(
+            stringResource(R.string.wheel_double_tap_hint),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 4.dp),
         )
         TrackStatusLine(music)
         Row(
@@ -720,25 +783,30 @@ private fun WheelPanel(
 
 @Composable
 private fun TrackStatusLine(music: com.example.dndsound.core.music.MusicState) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(top = 12.dp)) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(top = 8.dp)) {
         val track = music.currentTrack
         when {
             track != null -> {
                 Text(track.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                val zoneRes: Int? = music.anchor?.let { anchor ->
-                    if (anchor.isCalm()) {
-                        R.string.mood_calm
-                    } else {
-                        moodLabelRes(WheelMath.nearestMood(anchor.angleDeg))
+                // The chip tracks target/playing divergence, so it survives
+                // auto-advance inside the fallback zone.
+                if (music.playingZone != null && music.playingZone != music.targetZone) {
+                    Surface(
+                        shape = MaterialTheme.shapes.small,
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        modifier = Modifier.padding(top = 6.dp),
+                    ) {
+                        Text(
+                            stringResource(R.string.zone_playing, zoneName(music.playingZone!!)),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                        )
                     }
                 }
-                val details = buildList {
-                    zoneRes?.let { add(stringResource(it)) }
-                    if (music.crossfading) add(stringResource(R.string.music_crossfading))
-                }
-                if (details.isNotEmpty()) {
+                if (music.crossfading) {
                     Text(
-                        details.joinToString(" · "),
+                        stringResource(R.string.music_crossfading),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -806,8 +874,10 @@ private fun LibraryContent(
     onChangeFolder: () -> Unit,
     onCreateStructure: () -> Unit,
     onDisconnect: () -> Unit,
+    onChooseZone: (trackId: String, zoneId: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var zoneChooserTrack by remember { mutableStateOf<Track?>(null) }
     LazyColumn(
         modifier = modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -838,15 +908,43 @@ private fun LibraryContent(
                 Text(stringResource(R.string.library_disconnect))
             }
         }
-        if (library.tracks.isNotEmpty()) {
-            item { SectionHeader(stringResource(R.string.library_section_tracks, library.tracks.size)) }
-            items(library.tracks.take(MAX_ROWS)) { track ->
+        val unplaced = library.tracks.filter { it.position == null }
+        if (unplaced.isNotEmpty()) {
+            item { SectionHeader(stringResource(R.string.library_section_unplaced, unplaced.size)) }
+            item {
                 Text(
-                    "• ${track.title} — ${track.mode.name.lowercase()} [${track.position.angleDeg.toInt()}°]",
+                    stringResource(R.string.library_unplaced_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            items(unplaced.take(MAX_ROWS)) { track ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "• ${track.title}",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(
+                        onClick = { zoneChooserTrack = track },
+                        modifier = Modifier.heightIn(min = 48.dp),
+                    ) {
+                        Text(stringResource(R.string.action_choose_zone))
+                    }
+                }
+            }
+            item { MoreRow(unplaced.size) }
+        }
+        val placed = library.tracks.filter { it.position != null }
+        if (placed.isNotEmpty()) {
+            item { SectionHeader(stringResource(R.string.library_section_tracks, placed.size)) }
+            items(placed.take(MAX_ROWS)) { track ->
+                Text(
+                    "• ${track.title} — ${zoneName(WheelZones.zoneAt(track.position!!))}",
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
-            item { MoreRow(library.tracks.size) }
+            item { MoreRow(placed.size) }
         }
         if (library.environments.isNotEmpty()) {
             item { SectionHeader(stringResource(R.string.library_section_environments, library.environments.size)) }
@@ -882,6 +980,75 @@ private fun LibraryContent(
                 )
             }
         }
+    }
+    zoneChooserTrack?.let { track ->
+        ZoneChooserDialog(
+            track = track,
+            onPick = { zoneId ->
+                onChooseZone(track.id, zoneId)
+                zoneChooserTrack = null
+            },
+            onDismiss = { zoneChooserTrack = null },
+        )
+    }
+}
+
+/** All 25 zones grouped: neutral, sectors with both tiers, then transitions. */
+@Composable
+private fun ZoneChooserDialog(
+    track: Track,
+    onPick: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("${stringResource(R.string.zones_dialog_title)} · ${track.title}") },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                ZoneRow(WheelZone.Neutral, onPick)
+                Mood.entries.forEach { mood ->
+                    Text(
+                        stringResource(moodLabelRes(mood)),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(top = 10.dp, bottom = 2.dp),
+                    )
+                    Tier.entries.forEach { tier ->
+                        ZoneRow(WheelZone.Sector(mood, tier), onPick)
+                    }
+                }
+                Text(
+                    stringResource(R.string.zones_group_transitions),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 10.dp, bottom = 2.dp),
+                )
+                transitions().forEach { zone -> ZoneRow(zone, onPick) }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
+        },
+    )
+}
+
+private fun transitions(): List<WheelZone> = buildList {
+    val moods = Mood.entries
+    for (i in moods.indices) {
+        add(WheelZonePalette.transitionZone(moods[i], moods[(i + 1) % moods.size]) ?: continue)
+    }
+}
+
+@Composable
+private fun ZoneRow(zone: WheelZone, onPick: (String) -> Unit) {
+    TextButton(
+        onClick = { onPick(zone.id) },
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 40.dp),
+    ) {
+        Text(zoneName(zone))
     }
 }
 

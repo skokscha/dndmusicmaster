@@ -2,13 +2,13 @@ package com.example.dndsound.core.library
 
 import com.example.dndsound.core.model.EnvironmentCategory
 import com.example.dndsound.core.model.LayerKind
-import com.example.dndsound.core.model.Mood
 import com.example.dndsound.core.model.MusicMode
 import com.example.dndsound.core.model.RandomSpec
 import com.example.dndsound.core.model.SoundCategory
-import com.example.dndsound.core.model.WheelPoint
 import com.example.dndsound.core.model.Weather
-import com.example.dndsound.core.wheel.WheelMath
+import com.example.dndsound.core.wheel.Tier
+import com.example.dndsound.core.wheel.WheelZone
+import com.example.dndsound.core.wheel.WheelZones
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -36,38 +36,62 @@ class LibraryIndexBuilderTest {
     private fun build(vararg files: IndexedFile) = LibraryIndexBuilder.build(files.toList())
 
     @Test
-    fun `mood folder tracks get wheel position and exploration mode`() {
+    fun `sector folder tracks land on the outer tier of that sector`() {
         val result = build(audio("music/happy/march.ogg"), audio("music/happy/tune_02.ogg"))
         assertEquals(2, result.library.tracks.size)
         val march = result.library.tracks.first { it.id == "music/happy/march.ogg" }
         assertEquals("march", march.title)
         assertEquals(MusicMode.EXPLORATION, march.mode)
-        assertEquals(Mood.HAPPY, WheelMath.nearestMood(march.position.angleDeg))
-        assertEquals(0.7f, march.position.radius, 1e-4f)
+        assertEquals(WheelZone.Sector(com.example.dndsound.core.model.Mood.HAPPY, Tier.OUTER), WheelZones.zoneAt(march.position!!))
+        assertTrue(march.position!!.radius >= 0.68f, "outer tier scatter out of range")
         assertEquals(5_000L, march.durationMs)
     }
 
     @Test
-    fun `battle folder tracks use battle mode and center position`() {
+    fun `tier subfolder places the track in the inner tier`() {
+        val track = build(audio("music/happy/calm/quiet.ogg")).library.tracks.single()
+        assertEquals(WheelZone.Sector(com.example.dndsound.core.model.Mood.HAPPY, Tier.INNER), WheelZones.zoneAt(track.position!!))
+    }
+
+    @Test
+    fun `transition folder places the track in the transition band`() {
+        val track = build(audio("music/transitions/victory/roar.ogg")).library.tracks.single()
+        val zone = WheelZones.zoneAt(track.position!!)
+        assertTrue(zone is WheelZone.Transition && zone.id == "transition.victory", "got $zone")
+        assertTrue(track.position!!.radius in 0.30f..0.90f)
+    }
+
+    @Test
+    fun `battle root files import as unplaced battle tracks`() {
         val result = build(audio("music/battle/charge.ogg"))
         val track = result.library.tracks.single()
         assertEquals(MusicMode.BATTLE, track.mode)
-        assertEquals(WheelPoint.CENTER, track.position)
+        assertNull(track.position)
+        assertEquals(WarningReason.UNKNOWN_MUSIC_FOLDER, result.warnings.single().reason)
     }
 
     @Test
-    fun `calm folder tracks sit inside calm zone`() {
-        val track = build(audio("music/calm/quiet.ogg")).library.tracks.single()
-        assertTrue(track.position.isCalm())
+    fun `battle zone subfolders keep the battle mode`() {
+        val track = build(audio("music/battle/creepy/creepy/howl.ogg")).library.tracks.single()
+        assertEquals(MusicMode.BATTLE, track.mode)
+        assertEquals(WheelZone.Sector(com.example.dndsound.core.model.Mood.CREEPY, Tier.OUTER), WheelZones.zoneAt(track.position!!))
     }
 
     @Test
-    fun `unknown music folder is skipped with a warning`() {
+    fun `unknown music folder imports unplaced with a warning`() {
         val result = build(audio("music/oops/theme.ogg"), audio("music/sad/blue.ogg"))
-        assertEquals(1, result.library.tracks.size)
+        assertEquals(2, result.library.tracks.size)
+        val unplaced = result.library.tracks.first { it.id == "music/oops/theme.ogg" }
+        assertNull(unplaced.position)
         val warning = result.warnings.single()
         assertEquals("music/oops", warning.path)
         assertEquals(WarningReason.UNKNOWN_MUSIC_FOLDER, warning.reason)
+    }
+
+    @Test
+    fun `neutral folder sits in the neutral zone`() {
+        val track = build(audio("music/neutral/hum.ogg")).library.tracks.single()
+        assertEquals(WheelZone.Neutral, WheelZones.zoneAt(track.position!!))
     }
 
     @Test
@@ -78,21 +102,36 @@ class LibraryIndexBuilderTest {
         )
         val track = result.library.tracks.single()
         assertEquals("Epic main", track.title)
-        assertEquals(0.2f, track.position.x, 1e-6f)
-        assertEquals(0.3f, track.position.y, 1e-6f)
+        assertEquals(0.2f, track.position!!.x, 1e-6f)
+        assertEquals(0.3f, track.position!!.y, 1e-6f)
         assertEquals(-3f, track.gainDb, 1e-6f)
         assertEquals(MusicMode.BATTLE, track.mode)
     }
 
     @Test
-    fun `meta mood override moves the track to another mood`() {
+    fun `meta zone override places the track in that zone`() {
         val result = build(
-            metaFile("music/happy", """{"mood":"creepy"}"""),
+            metaFile("music/happy", """{"zone":"creepy.creepy"}"""),
             audio("music/happy/odd.ogg"),
         )
         val track = result.library.tracks.single()
-        assertEquals(Mood.CREEPY, WheelMath.nearestMood(track.position.angleDeg))
+        assertEquals(
+            WheelZone.Sector(com.example.dndsound.core.model.Mood.CREEPY, Tier.OUTER),
+            WheelZones.zoneAt(track.position!!),
+        )
         assertTrue(result.warnings.isEmpty())
+    }
+
+    @Test
+    fun `manual position beats meta json and folder`() {
+        // Covered at the repository level; here only the ordering meta > folder.
+        val result = build(
+            metaFile("music/sad", """{"wheel":{"x":0.0,"y":0.5}}"""),
+            audio("music/sad/blue.ogg"),
+        )
+        val track = result.library.tracks.single()
+        assertEquals(0.5f, track.position!!.y, 1e-5f)
+        assertEquals(0.0f, track.position!!.x, 1e-5f)
     }
 
     @Test

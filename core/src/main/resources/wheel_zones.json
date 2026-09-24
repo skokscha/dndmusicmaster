@@ -1,0 +1,24 @@
+{
+  "_comment": "Source of truth for the 25 wheel zones: neutral center, 8 sectors x 2 tiers, 8 boundary transitions. Display names live in strings.xml under zone_<id with dots replaced by underscores>. Folder names are kebab-case; comparison ignores case, '-', '_' and spaces.",
+  "neutral": { "id": "neutral", "folder": "neutral", "color": "#B8B2A6" },
+  "sectors": [
+    { "mood": "happy",   "color": "#F6C744", "inner": { "id": "happy.calm",         "folder": "calm" },          "outer": { "id": "happy.vivid_town",    "folder": "vivid-town" } },
+    { "mood": "epic",    "color": "#E8631E", "inner": { "id": "epic.soaring",       "folder": "soaring" },       "outer": { "id": "epic.epic",           "folder": "epic" } },
+    { "mood": "sad",     "color": "#5B7FA6", "inner": { "id": "sad.defeat",         "folder": "defeat" },        "outer": { "id": "sad.tragic",          "folder": "tragic" } },
+    { "mood": "tense",   "color": "#D6372F", "inner": { "id": "tense.thrilling",    "folder": "thrilling" },     "outer": { "id": "tense.tense",         "folder": "tense" } },
+    { "mood": "creepy",  "color": "#6B1D45", "inner": { "id": "creepy.eerie",       "folder": "eerie" },         "outer": { "id": "creepy.creepy",       "folder": "creepy" } },
+    { "mood": "mystic",  "color": "#7E57C2", "inner": { "id": "mystic.spheric",     "folder": "spheric" },       "outer": { "id": "mystic.mystic",       "folder": "mystic" } },
+    { "mood": "magical", "color": "#2FB7C9", "inner": { "id": "magical.slight_magic", "folder": "slight-magic" }, "outer": { "id": "magical.magical",   "folder": "magical" } },
+    { "mood": "funny",   "color": "#9CCB3A", "inner": { "id": "funny.noble",        "folder": "noble" },         "outer": { "id": "funny.funny",         "folder": "funny" } }
+  ],
+  "transitions": [
+    { "id": "transition.victory",      "folder": "victory",      "color": "#F5A623", "between": ["happy", "epic"] },
+    { "id": "transition.tragic_fight", "folder": "tragic-fight", "color": "#9C4A3F", "between": ["epic", "sad"] },
+    { "id": "transition.moody",        "folder": "moody",        "color": "#7A5C7E", "between": ["sad", "tense"] },
+    { "id": "transition.dread",        "folder": "dread",        "color": "#A3283A", "between": ["tense", "creepy"] },
+    { "id": "transition.haunted",      "folder": "haunted",      "color": "#4B2C7A", "between": ["creepy", "mystic"] },
+    { "id": "transition.enchanted",    "folder": "enchanted",    "color": "#5B7BE0", "between": ["mystic", "magical"] },
+    { "id": "transition.whimsical",    "folder": "whimsical",    "color": "#4FC48F", "between": ["magical", "funny"] },
+    { "id": "transition.festive",      "folder": "festive",      "color": "#D3D64A", "between": ["funny", "happy"] }
+  ]
+}

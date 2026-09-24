@@ -57,9 +57,9 @@ class AppContainer(context: Context) {
     val musicEngine = MusicEngine(
         scope = appScope,
         playerFactory = { ExoPlayerHandle(appContext) },
-        selectTrack = { point, mode, recent ->
+        selectTrack = { targetZone, point, mode, recent ->
             val tracks = libraryRepository.library.first().tracks
-            trackSelector.select(tracks, point, mode, recent)
+            trackSelector.select(targetZone, point, mode, tracks, recent)
         },
         selectNextTrack = { current, recent ->
             val tracks = libraryRepository.library.first().tracks

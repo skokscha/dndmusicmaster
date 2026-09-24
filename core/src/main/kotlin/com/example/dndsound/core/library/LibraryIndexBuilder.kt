@@ -13,6 +13,8 @@ import com.example.dndsound.core.model.Track
 import com.example.dndsound.core.model.Weather
 import com.example.dndsound.core.model.WheelPoint
 import com.example.dndsound.core.repo.Library
+import com.example.dndsound.core.wheel.FolderZone
+import com.example.dndsound.core.wheel.WheelZonePalette
 
 /** Why a scanned path produced no playable content (or needs user attention). */
 enum class WarningReason {
@@ -34,7 +36,8 @@ data class IndexResult(val library: Library, val warnings: List<IndexWarning>)
  * no I/O — the SAF scanner and the Room cache feed it [IndexedFile]s.
  *
  * Conventions applied here:
- *  - music/<mood|battle|calm>/<file>       -> [Track] (wheel position from folder)
+ *  - music/[battle/]<zone folders>/<file>  -> [Track] (zone from wheel_zones.json,
+ *    unknown folders import as unplaced tracks with position = null)
  *  - ambience/<env>/{base*, cover*}        -> [Environment] base loop(s)
  *  - ambience/<env>/layers|spots/<file>    -> LOOP / RANDOM layers (variants grouped)
  *  - sounds/[<category>/]<file>            -> [OneShot] groups (variants grouped)
@@ -91,38 +94,40 @@ object LibraryIndexBuilder {
         val tracks = mutableListOf<Track>()
         val warnedDirs = mutableSetOf<String>()
         for (file in audio) {
-            val segments = file.directory.split('/')
-            if (segments.firstOrNull() != "music" || segments.size < 2) continue
-            val moodSegment = segments[1]
+            if (!file.directory.equals("music", ignoreCase = true) &&
+                !file.directory.startsWith("music/", ignoreCase = true)
+            ) {
+                continue
+            }
             val meta = metas[file.directory]
-            val isBattle = moodSegment.equals(BATTLE, ignoreCase = true)
-            val hasMetaPosition = meta?.wheel?.x != null && meta.wheel?.y != null
-            val moodPoint = LibraryRules.defaultWheelPoint(moodSegment)
-            if (moodPoint == null && !isBattle && !hasMetaPosition && meta?.mood == null) {
+            val match = WheelZonePalette.zoneForFolder(file.directory)
+            if (match == null) {
+                // Unknown folder: the track still imports but stays unplaced
+                // (position = null, never plays until the user picks a zone).
                 if (warnedDirs.add(file.directory)) {
                     warnings += IndexWarning(file.directory, WarningReason.UNKNOWN_MUSIC_FOLDER)
                 }
-                continue
             }
-            tracks += file.toTrack(moodSegment, meta, moodPoint, isBattle)
+            tracks += file.toTrack(match, meta)
         }
         return tracks
     }
 
-    private fun IndexedFile.toTrack(
-        moodSegment: String,
-        meta: MetaJson?,
-        moodPoint: WheelPoint?,
-        isBattle: Boolean,
-    ): Track {
+    private fun IndexedFile.toTrack(match: FolderZone?, meta: MetaJson?): Track {
+        // Position priority: manual (Room overrides) -> meta.json x/y ->
+        // meta.json zone -> folder-derived default scatter.
         val metaPosition = meta?.wheel?.let { w ->
-            if (w.x != null && w.y != null) WheelPoint(w.x, w.y).clamped() else null
+            if (w.x != null && w.y != null) WheelPoint(w.x!!, w.y!!).clamped() else null
         }
-        val moodPosition = meta?.mood?.let { LibraryRules.defaultWheelPoint(it) }
+        val metaZonePosition = meta?.zone
+            ?.let { id -> WheelZonePalette.zoneById(id) }
+            ?.let { zone -> WheelZonePalette.defaultPositionFor(zone, relativePath) }
+        val folderPosition = match?.let { WheelZonePalette.defaultPositionFor(it.zone, relativePath) }
         val mode = when {
             meta?.mode?.equals(BATTLE, ignoreCase = true) == true -> MusicMode.BATTLE
             meta?.mode != null -> MusicMode.EXPLORATION
-            isBattle -> MusicMode.BATTLE
+            match != null -> match.mode
+            directory.split('/').getOrNull(1)?.equals(BATTLE, ignoreCase = true) == true -> MusicMode.BATTLE
             else -> MusicMode.EXPLORATION
         }
         return Track(
@@ -131,7 +136,7 @@ object LibraryIndexBuilder {
             uri = uri,
             durationMs = durationMs ?: 0L,
             mode = mode,
-            position = metaPosition ?: moodPosition ?: moodPoint ?: WheelPoint.CENTER,
+            position = metaPosition ?: metaZonePosition ?: folderPosition,
             gainDb = meta?.gainDb ?: 0f,
         )
     }

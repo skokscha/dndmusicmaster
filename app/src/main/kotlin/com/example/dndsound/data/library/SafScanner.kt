@@ -7,6 +7,10 @@ import android.net.Uri
 import android.provider.DocumentsContract
 import com.example.dndsound.core.library.IndexedFile
 import com.example.dndsound.core.library.LibraryRules
+import com.example.dndsound.core.model.Mood
+import com.example.dndsound.core.wheel.Tier
+import com.example.dndsound.core.wheel.WheelZone
+import com.example.dndsound.core.wheel.WheelZonePalette
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.IOException
@@ -99,19 +103,72 @@ class SafScanner(context: Context) {
         out
     }
 
-    /** Creates the convention skeleton (music/ambience/sounds/weather) if absent. */
+    /**
+     * Creates the full convention skeleton if absent: the 25-zone music tree
+     * (from wheel_zones.json, exploration + battle) plus ambience/sounds/weather.
+     */
     suspend fun createFolderStructure(treeUri: Uri): Unit = withContext(Dispatchers.IO) {
-        for (dir in listOf("music", "ambience", "sounds", "weather")) {
-            try {
-                DocumentsContract.createDocument(
-                    resolver,
-                    treeUri,
-                    DocumentsContract.Document.MIME_TYPE_DIR,
-                    dir,
-                )
-            } catch (_: Exception) {
-                // Already exists or provider refused; harmless either way.
+        val zonePaths = buildList {
+            add(WheelZonePalette.folderPath(WheelZone.Neutral))
+            Mood.entries.forEach { mood ->
+                Tier.entries.forEach { tier ->
+                    add(WheelZonePalette.folderPath(WheelZone.Sector(mood, tier)))
+                }
             }
+            Mood.entries.forEachIndexed { i, mood ->
+                val next = Mood.entries[(i + 1) % Mood.entries.size]
+                WheelZonePalette.transitionZone(mood, next)?.let {
+                    add(WheelZonePalette.folderPath(it))
+                }
+            }
+        }
+        val paths = buildList {
+            add("music")
+            zonePaths.forEach { add("music/$it") }
+            zonePaths.forEach { add("music/battle/$it") }
+            add("ambience")
+            add("sounds")
+            add("weather")
+        }
+        val rootId = try {
+            DocumentsContract.getTreeDocumentId(treeUri)
+        } catch (_: IllegalArgumentException) {
+            return@withContext
+        }
+        for (path in paths) {
+            var parentId = rootId
+            for (segment in path.split('/')) {
+                parentId = ensureDir(treeUri, parentId, segment) ?: break
+            }
+        }
+    }
+
+    /** Finds a child directory by name or creates it; null on provider failure. */
+    private fun ensureDir(treeUri: Uri, parentDocId: String, name: String): String? {
+        try {
+            resolver.query(childrenUri(treeUri, parentDocId), PROJECTION, null, null, null)?.use { c ->
+                while (c.moveToNext()) {
+                    if (c.getString(2) == DocumentsContract.Document.MIME_TYPE_DIR &&
+                        c.getString(1).equals(name, ignoreCase = true)
+                    ) {
+                        return c.getString(0)
+                    }
+                }
+            }
+        } catch (_: Exception) {
+            // Listing failed; fall through and try to create.
+        }
+        return try {
+            val parentUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, parentDocId)
+            DocumentsContract.createDocument(
+                resolver,
+                parentUri,
+                DocumentsContract.Document.MIME_TYPE_DIR,
+                name,
+            )?.let { DocumentsContract.getDocumentId(it) }
+        } catch (_: Exception) {
+            // Provider refused; the scan will report the missing folders.
+            null
         }
     }
 

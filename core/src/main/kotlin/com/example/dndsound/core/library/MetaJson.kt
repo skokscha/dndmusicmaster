@@ -13,7 +13,8 @@ data class MetaJson(
     val title: String? = null,
     val category: String? = null,
     val icon: String? = null,
-    val mood: String? = null,
+    /** Zone id from wheel_zones.json ("happy.vivid_town"); overrides the folder. */
+    val zone: String? = null,
     val mode: String? = null,
     val wheel: Wheel? = null,
     val gainDb: Float? = null,

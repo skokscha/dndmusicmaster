@@ -5,8 +5,8 @@ import kotlinx.serialization.Serializable
 import kotlin.math.sqrt
 
 /**
- * A point inside the unit mood wheel. (0, 0) is the calm center;
- * the rim is radius 1.
+ * A point inside the unit mood wheel. (0, 0) is the neutral center;
+ * the rim is radius 1. Zone classification lives in WheelZones.
  */
 @Serializable
 data class WheelPoint(val x: Float, val y: Float) {
@@ -27,8 +27,6 @@ data class WheelPoint(val x: Float, val y: Float) {
         val (cx, cy) = WheelMath.clampToUnitCircle(x, y)
         return WheelPoint(cx, cy)
     }
-
-    fun isCalm(): Boolean = radius < WheelMath.CALM_RADIUS
 
     companion object {
         val CENTER = WheelPoint(0f, 0f)

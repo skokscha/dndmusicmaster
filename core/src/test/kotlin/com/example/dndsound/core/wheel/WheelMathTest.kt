@@ -51,15 +51,6 @@ class WheelMathTest {
     }
 
     @Test
-    fun `intensity is zero in the calm zone and grows to the rim`() {
-        assertEquals(0f, WheelMath.intensity(0f))
-        assertEquals(0f, WheelMath.intensity(WheelMath.CALM_RADIUS))
-        assertEquals(1f, WheelMath.intensity(1f))
-        assertEquals(1f, WheelMath.intensity(5f))
-        assertEquals(0.5f, WheelMath.intensity(0.625f), 1e-6f)
-    }
-
-    @Test
     fun `angular distance wraps around the circle`() {
         assertEquals(90f, WheelMath.angularDistance(170f, -100f), 1e-4f)
         assertEquals(0f, WheelMath.angularDistance(-180f, 180f), 1e-4f)

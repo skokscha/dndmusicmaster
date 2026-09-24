@@ -1,10 +1,8 @@
 package com.example.dndsound.core.library
 
 import com.example.dndsound.core.model.EnvironmentCategory
-import com.example.dndsound.core.model.Mood
 import com.example.dndsound.core.model.SoundCategory
 import com.example.dndsound.core.model.Weather
-import com.example.dndsound.core.model.WheelPoint
 
 /**
  * File-name and folder-convention rules for the user's library
@@ -45,29 +43,6 @@ object LibraryRules {
         fileNames.filter { isAudioFile(it) }
             .groupBy { baseName(it) }
             .mapValues { (_, files) -> files.sorted() }
-
-    /** Mood folder name ("happy") to Mood; null for unknown names. */
-    fun moodFromFolder(folder: String): Mood? =
-        Mood.entries.firstOrNull { it.name.equals(folder, ignoreCase = true) }
-
-    fun isCalmFolder(folder: String): Boolean =
-        folder.equals("calm", ignoreCase = true)
-
-    /**
-     * Default wheel position for a music subfolder: mood folders sit at
-     * radius 0.7 on the mood's angle; the calm folder sits near the center.
-     */
-    fun defaultWheelPoint(folder: String): WheelPoint? {
-        val mood = moodFromFolder(folder)
-        return when {
-            mood != null -> WheelPoint(
-                x = 0.7f * kotlin.math.cos(Math.toRadians(mood.angleDeg.toDouble())).toFloat(),
-                y = 0.7f * kotlin.math.sin(Math.toRadians(mood.angleDeg.toDouble())).toFloat(),
-            )
-            isCalmFolder(folder) -> WheelPoint(0f, 0.1f)
-            else -> null
-        }
-    }
 
     private val ENVIRONMENT_CATEGORIES = EnvironmentCategory.entries
         .map { it.name.lowercase() to it }

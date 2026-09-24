@@ -16,7 +16,7 @@ class MetaJsonTest {
               "title": "Вечерний лес",
               "category": "nature",
               "icon": "forest",
-              "mood": "mystic",
+              "zone": "mystic.spheric",
               "mode": "battle",
               "wheel": { "x": 0.7, "y": 0.7 },
               "gainDb": -2.0,
@@ -27,7 +27,7 @@ class MetaJsonTest {
         assertNotNull(meta)
         assertEquals("Вечерний лес", meta!!.title)
         assertEquals("nature", meta.category)
-        assertEquals("mystic", meta.mood)
+        assertEquals("mystic.spheric", meta.zone)
         assertEquals("battle", meta.mode)
         assertEquals(0.7f, meta.wheel!!.x)
         assertEquals(-2f, meta.gainDb)

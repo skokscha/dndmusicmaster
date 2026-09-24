@@ -24,6 +24,7 @@ import com.example.dndsound.core.repo.ScanState
 import com.example.dndsound.core.repo.SettingsRepository
 import com.example.dndsound.data.library.DefaultLibraryRepository
 import com.example.dndsound.data.library.SafScanner
+import com.example.dndsound.core.wheel.WheelZonePalette
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -86,6 +87,14 @@ class MainViewModel(
     }
 
     fun nextTrack() = musicEngine.next()
+
+    /** Places an (unplaced) track into a zone at its default scatter position. */
+    fun setTrackZone(trackId: String, zoneId: String) {
+        viewModelScope.launch {
+            val zone = WheelZonePalette.zoneById(zoneId) ?: return@launch
+            libraryRepository.setTrackPosition(trackId, WheelZonePalette.defaultPositionFor(zone, trackId))
+        }
+    }
 
     fun pause() = musicEngine.pause()
 

@@ -4,7 +4,8 @@ import kotlinx.serialization.Serializable
 
 /**
  * A music file indexed from the user's library. Position is the track's home
- * on the mood wheel; uri is a SAF document URI (app never copies files).
+ * on the mood wheel (null = unplaced: unknown folder, never plays until the
+ * user picks a zone); uri is a SAF document URI (app never copies files).
  */
 @Serializable
 data class Track(
@@ -13,6 +14,6 @@ data class Track(
     val uri: String,
     val durationMs: Long,
     val mode: MusicMode = MusicMode.EXPLORATION,
-    val position: WheelPoint = WheelPoint.CENTER,
+    val position: WheelPoint? = null,
     val gainDb: Float = 0f,
 )

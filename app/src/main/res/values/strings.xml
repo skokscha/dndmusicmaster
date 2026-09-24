@@ -68,7 +68,6 @@
     <string name="mood_mystic">Мистика</string>
     <string name="mood_magical">Магия</string>
     <string name="mood_funny">Веселье</string>
-    <string name="mood_calm">Спокойствие</string>
 
     <!-- Music controls (stage 4) -->
     <string name="mode_exploration">Разведка</string>
@@ -79,4 +78,44 @@
     <string name="music_waiting">Загрузка трека…</string>
     <string name="music_crossfading">кроссфейд…</string>
     <string name="music_error">Ошибка воспроизведения: %1$s</string>
+    <!-- Wheel zones (addendum): display names mirror wheel_zones.json. -->
+    <string name="zone_neutral">Neutral</string>
+    <string name="zone_happy_calm">Calm</string>
+    <string name="zone_happy_vivid_town">Vivid town</string>
+    <string name="zone_epic_soaring">Soaring</string>
+    <string name="zone_epic_epic">Epic</string>
+    <string name="zone_sad_defeat">Defeat</string>
+    <string name="zone_sad_tragic">Tragic</string>
+    <string name="zone_tense_thrilling">Thrilling</string>
+    <string name="zone_tense_tense">Tense</string>
+    <string name="zone_creepy_eerie">Eerie</string>
+    <string name="zone_creepy_creepy">Creepy</string>
+    <string name="zone_mystic_spheric">Spheric</string>
+    <string name="zone_mystic_mystic">Mystic</string>
+    <string name="zone_magical_slight_magic">Slight magic</string>
+    <string name="zone_magical_magical">Magical</string>
+    <string name="zone_funny_noble">Noble</string>
+    <string name="zone_funny_funny">Funny</string>
+    <string name="zone_transition_victory">Victory</string>
+    <string name="zone_transition_tragic_fight">Tragic fight</string>
+    <string name="zone_transition_moody">Moody</string>
+    <string name="zone_transition_dread">Dread</string>
+    <string name="zone_transition_haunted">Haunted</string>
+    <string name="zone_transition_enchanted">Enchanted</string>
+    <string name="zone_transition_whimsical">Whimsical</string>
+    <string name="zone_transition_festive">Festive</string>
+    <string name="zone_playing">Играет: %1$s</string>
+    <string name="zone_next_cw">Следующая зона по часовой</string>
+    <string name="zone_next_ccw">Следующая зона против часовой</string>
+    <string name="zone_outward">Наружу (интенсивнее)</string>
+    <string name="zone_inward">К центру</string>
+    <string name="wheel_double_tap_hint">Двойной тап — в центр</string>
+
+    <!-- Unplaced tracks -->
+    <string name="library_section_unplaced">Не размещены (%1$d)</string>
+    <string name="library_unplaced_hint">Эти треки пока не играют — выберите для них зону.</string>
+    <string name="action_choose_zone">Выбрать зону</string>
+    <string name="zones_dialog_title">Зона</string>
+    <string name="zones_group_transitions">Переходы</string>
+    <string name="action_cancel">Отмена</string>
 </resources>

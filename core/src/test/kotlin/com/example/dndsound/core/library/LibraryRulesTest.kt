@@ -1,11 +1,9 @@
 package com.example.dndsound.core.library
 
 import com.example.dndsound.core.model.EnvironmentCategory
-import com.example.dndsound.core.model.Mood
 import com.example.dndsound.core.model.SoundCategory
 import com.example.dndsound.core.model.Weather
 import com.example.dndsound.core.model.WheelPoint
-import com.example.dndsound.core.wheel.WheelMath
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
@@ -52,20 +50,6 @@ class LibraryRulesTest {
         assertEquals(listOf("goblin_01.ogg", "goblin_02.ogg", "goblin_10.ogg"), grouped["goblin"])
         assertEquals(listOf("troll_01.ogg"), grouped["troll"])
         assertEquals(2, grouped.size)
-    }
-
-    @Test
-    fun `mood folders map to wheel points`() {
-        val happy = LibraryRules.defaultWheelPoint("happy")!!
-        assertEquals(Mood.HAPPY, WheelMath.nearestMood(happy.angleDeg))
-        assertEquals(0.7f, happy.radius, 1e-4f)
-
-        val calm = LibraryRules.defaultWheelPoint("calm")!!
-        assertTrue(calm.radius <= WheelMath.CALM_RADIUS)
-        assertTrue(calm.isCalm())
-
-        assertNull(LibraryRules.defaultWheelPoint("battle"))
-        assertNull(LibraryRules.defaultWheelPoint("unknown_stuff"))
     }
 
     @Test

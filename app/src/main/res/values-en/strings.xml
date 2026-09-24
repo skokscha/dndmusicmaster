@@ -68,7 +68,6 @@
     <string name="mood_mystic">Mystic</string>
     <string name="mood_magical">Magic</string>
     <string name="mood_funny">Funny</string>
-    <string name="mood_calm">Calm</string>
 
     <!-- Music controls (stage 4) -->
     <string name="mode_exploration">Exploration</string>
@@ -79,4 +78,44 @@
     <string name="music_waiting">Loading track…</string>
     <string name="music_crossfading">crossfading…</string>
     <string name="music_error">Playback error: %1$s</string>
+    <!-- Wheel zones (addendum): display names mirror wheel_zones.json. -->
+    <string name="zone_neutral">Neutral</string>
+    <string name="zone_happy_calm">Calm</string>
+    <string name="zone_happy_vivid_town">Vivid town</string>
+    <string name="zone_epic_soaring">Soaring</string>
+    <string name="zone_epic_epic">Epic</string>
+    <string name="zone_sad_defeat">Defeat</string>
+    <string name="zone_sad_tragic">Tragic</string>
+    <string name="zone_tense_thrilling">Thrilling</string>
+    <string name="zone_tense_tense">Tense</string>
+    <string name="zone_creepy_eerie">Eerie</string>
+    <string name="zone_creepy_creepy">Creepy</string>
+    <string name="zone_mystic_spheric">Spheric</string>
+    <string name="zone_mystic_mystic">Mystic</string>
+    <string name="zone_magical_slight_magic">Slight magic</string>
+    <string name="zone_magical_magical">Magical</string>
+    <string name="zone_funny_noble">Noble</string>
+    <string name="zone_funny_funny">Funny</string>
+    <string name="zone_transition_victory">Victory</string>
+    <string name="zone_transition_tragic_fight">Tragic fight</string>
+    <string name="zone_transition_moody">Moody</string>
+    <string name="zone_transition_dread">Dread</string>
+    <string name="zone_transition_haunted">Haunted</string>
+    <string name="zone_transition_enchanted">Enchanted</string>
+    <string name="zone_transition_whimsical">Whimsical</string>
+    <string name="zone_transition_festive">Festive</string>
+    <string name="zone_playing">Playing: %1$s</string>
+    <string name="zone_next_cw">Next zone clockwise</string>
+    <string name="zone_next_ccw">Next zone counter-clockwise</string>
+    <string name="zone_outward">Outward (more intense)</string>
+    <string name="zone_inward">Toward the center</string>
+    <string name="wheel_double_tap_hint">Double-tap — back to the center</string>
+
+    <!-- Unplaced tracks -->
+    <string name="library_section_unplaced">Unplaced (%1$d)</string>
+    <string name="library_unplaced_hint">These tracks don\'t play yet — pick a zone for them.</string>
+    <string name="action_choose_zone">Choose zone</string>
+    <string name="zones_dialog_title">Zone</string>
+    <string name="zones_group_transitions">Transitions</string>
+    <string name="action_cancel">Cancel</string>
 </resources>

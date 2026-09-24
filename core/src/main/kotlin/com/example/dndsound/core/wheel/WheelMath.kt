@@ -6,12 +6,10 @@ import kotlin.math.atan2
 
 /**
  * Pure geometry helpers for the mood wheel. The wheel is a unit circle:
- * (0, 0) is the calm center, points are clamped to radius 1.
+ * (0, 0) is the neutral center, points are clamped to radius 1. Zone-level
+ * geometry (25 zones, hysteresis) lives in [WheelZones].
  */
 object WheelMath {
-
-    /** Radius below which the pointer is considered "calm". */
-    const val CALM_RADIUS: Float = 0.25f
 
     /** Clamp a point (in unit-circle space) to the unit circle. */
     fun clampToUnitCircle(x: Float, y: Float): Pair<Float, Float> {
@@ -30,17 +28,6 @@ object WheelMath {
         val a = normalize(angleDeg)
         return Mood.entries.minBy { mood -> angularDistance(a, mood.angleDeg) }
     }
-
-    /**
-     * Intensity of a wheel point: 0 in the calm center, 1 at the rim.
-     * The calm zone maps to 0.
-     */
-    fun intensity(r: Float): Float =
-        when {
-            r <= CALM_RADIUS -> 0f
-            r >= 1f -> 1f
-            else -> (r - CALM_RADIUS) / (1f - CALM_RADIUS)
-        }
 
     /** Angular distance between two angles in degrees, in [0, 180]. */
     fun angularDistance(a: Float, b: Float): Float {

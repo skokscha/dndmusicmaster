@@ -15,6 +15,8 @@ data class AppSettings(
     val pauseOnHeadphonesDisconnected: Boolean = true,
     val languageTag: String = "ru",
     val theme: Theme = Theme.AMBER,
+    /** Desaturate zones that have no tracks (~35%), so gaps are visible. */
+    val highlightEmptyZones: Boolean = true,
     /** Mixer bus gains in dB; every engine applies them on top of per-track gains. */
     val masterDb: Float = 0f,
     val musicBusDb: Float = 0f,
