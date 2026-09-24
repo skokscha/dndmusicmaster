@@ -33,7 +33,7 @@ class SafScanner(context: Context) {
             .map { it.uri }
         if (treeUri !in persisted) return false
         return try {
-            val docId = DocumentsContract.getDocumentId(treeUri)
+            val docId = DocumentsContract.getTreeDocumentId(treeUri)
             resolver.query(childrenUri(treeUri, docId), PROJECTION, null, null, null)?.use { true } != null
         } catch (_: Exception) {
             false
@@ -49,7 +49,7 @@ class SafScanner(context: Context) {
         durationCache: (path: String) -> Long? = { null },
     ): List<IndexedFile> = withContext(Dispatchers.IO) {
         val rootId = try {
-            DocumentsContract.getDocumentId(treeUri)
+            DocumentsContract.getTreeDocumentId(treeUri)
         } catch (e: IllegalArgumentException) {
             throw LibraryAccessException("Not a document tree URI: $treeUri", e)
         }
@@ -115,11 +115,13 @@ class SafScanner(context: Context) {
         }
     }
 
+    /**
+     * Children of [parentDocId] INSIDE the granted tree. The tree part must
+     * stay the originally granted root: rebuilding it per folder would point
+     * at a different tree and the provider denies access to subfolders.
+     */
     private fun childrenUri(treeUri: Uri, parentDocId: String): Uri =
-        DocumentsContract.buildChildDocumentsUriUsingTree(
-            DocumentsContract.buildTreeDocumentUri(treeUri.authority, parentDocId),
-            parentDocId,
-        )
+        DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, parentDocId)
 
     private fun String.joinDir(child: String) = if (isEmpty()) child else "$this/$child"
 

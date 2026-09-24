@@ -1,6 +1,7 @@
 package com.example.dndsound.data.library
 
 import android.net.Uri
+import android.util.Log
 import com.example.dndsound.core.library.IndexedFile
 import com.example.dndsound.core.library.LibraryIndexBuilder
 import com.example.dndsound.core.model.WheelPoint
@@ -64,6 +65,7 @@ class DefaultLibraryRepository(
         }
         val treeUri = Uri.parse(rootUri)
         if (!scanner.hasAccess(treeUri)) {
+            Log.w(TAG, "rescan: no persisted access to $rootUri")
             _scanState.value = ScanState.PermissionLost
             return
         }
@@ -92,10 +94,13 @@ class DefaultLibraryRepository(
 
             val audioCount = withDurations.count { it.isAudio }
             val warnings = LibraryIndexBuilder.build(withDurations).warnings.size
+            Log.i(TAG, "rescan: $audioCount audio files, $warnings warnings")
             _scanState.value = ScanState.Ready(audioCount, warnings)
         } catch (e: SafScanner.LibraryAccessException) {
+            Log.w(TAG, "rescan: access lost", e)
             _scanState.value = ScanState.PermissionLost
         } catch (e: Exception) {
+            Log.w(TAG, "rescan: failed", e)
             _scanState.value = ScanState.Failed(e.message)
         }
     }
@@ -134,5 +139,9 @@ class DefaultLibraryRepository(
                 moved[track.id]?.let { track.copy(position = WheelPoint(it.x, it.y).clamped()) } ?: track
             },
         )
+    }
+
+    private companion object {
+        const val TAG = "DnDSoundLibrary"
     }
 }
