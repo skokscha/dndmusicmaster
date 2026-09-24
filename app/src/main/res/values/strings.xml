@@ -28,7 +28,20 @@
 
     <!-- Sections (stage 4) -->
     <string name="section_wheel">Колесо</string>
+    <string name="section_ambience">Окружение</string>
     <string name="section_library">Библиотека</string>
+
+    <!-- Ambience (stage 5) -->
+    <string name="ambience_no_environments">В библиотеке нет окружений — положите их в ambience/&lt;название&gt;</string>
+    <string name="ambience_day">День</string>
+    <string name="ambience_night">Ночь</string>
+    <string name="ambience_weather">Погода</string>
+    <string name="ambience_layers">Слои</string>
+    <string name="weather_none">Ясно</string>
+    <string name="weather_rain">Дождь</string>
+    <string name="weather_storm">Гроза</string>
+    <string name="weather_wind">Ветер</string>
+    <string name="weather_snow">Снег</string>
 
     <!-- Mood wheel (stage 4) -->
     <string name="mood_happy">Радость</string>

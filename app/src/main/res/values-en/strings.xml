@@ -28,7 +28,20 @@
 
     <!-- Sections (stage 4) -->
     <string name="section_wheel">Wheel</string>
+    <string name="section_ambience">Ambience</string>
     <string name="section_library">Library</string>
+
+    <!-- Ambience (stage 5) -->
+    <string name="ambience_no_environments">No environments in the library — put them into ambience/&lt;name&gt;</string>
+    <string name="ambience_day">Day</string>
+    <string name="ambience_night">Night</string>
+    <string name="ambience_weather">Weather</string>
+    <string name="ambience_layers">Layers</string>
+    <string name="weather_none">Clear</string>
+    <string name="weather_rain">Rain</string>
+    <string name="weather_storm">Storm</string>
+    <string name="weather_wind">Wind</string>
+    <string name="weather_snow">Snow</string>
 
     <!-- Mood wheel (stage 4) -->
     <string name="mood_happy">Happy</string>

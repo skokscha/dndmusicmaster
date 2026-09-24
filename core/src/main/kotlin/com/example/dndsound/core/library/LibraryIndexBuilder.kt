@@ -207,6 +207,8 @@ object LibraryIndexBuilder {
             baseDayUri = baseDayUri,
             baseNightUri = baseNightUri,
             layers = layers,
+            seamless = meta?.seamless ?: true,
+            baseDurationMs = (baseDay ?: baseNight ?: plainBase)?.durationMs ?: 0L,
         )
     }
 

@@ -52,6 +52,14 @@ data class Environment(
     val baseDayUri: String? = null,
     val baseNightUri: String? = null,
     val layers: List<AmbienceLayer> = emptyList(),
+    /**
+     * True when the base loop files loop without a gap (well-encoded OGG/Opus).
+     * meta.json "seamless": false switches the base to the overlapping
+     * dual-player looper, which hides encoder gaps.
+     */
+    val seamless: Boolean = true,
+    /** Duration of the main base file in ms; 0 = unknown. Drives the looper. */
+    val baseDurationMs: Long = 0,
 )
 
 /**

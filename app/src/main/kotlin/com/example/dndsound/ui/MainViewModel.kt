@@ -5,7 +5,12 @@ import android.content.Intent
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.dndsound.core.ambience.AmbienceEngine
+import com.example.dndsound.core.ambience.AmbienceState
+import com.example.dndsound.core.model.Environment
 import com.example.dndsound.core.model.MusicMode
+import com.example.dndsound.core.model.TimeOfDay
+import com.example.dndsound.core.model.Weather
 import com.example.dndsound.core.model.WheelPoint
 import com.example.dndsound.core.music.MusicEngine
 import com.example.dndsound.core.music.MusicState
@@ -32,6 +37,7 @@ class MainViewModel(
     private val libraryRepository: DefaultLibraryRepository,
     private val scanner: SafScanner,
     val musicEngine: MusicEngine,
+    val ambienceEngine: AmbienceEngine,
 ) : ViewModel() {
 
     private val appContext = context.applicationContext
@@ -45,6 +51,8 @@ class MainViewModel(
     val scanState: StateFlow<ScanState> = libraryRepository.scanState
 
     val music: StateFlow<MusicState> = musicEngine.state
+
+    val ambience: StateFlow<AmbienceState> = ambienceEngine.state
 
     /** Live drag position shown on the wheel before the debounced commit. */
     private val _liveMarker = MutableStateFlow<WheelPoint?>(null)
@@ -65,6 +73,26 @@ class MainViewModel(
     fun pause() = musicEngine.pause()
 
     fun resume() = musicEngine.resume()
+
+    // ------------------------------------------------------------ ambience
+
+    fun selectEnvironment(environment: Environment?, timeOfDay: TimeOfDay) {
+        ambienceEngine.setEnvironment(environment, timeOfDay)
+    }
+
+    fun setTimeOfDay(timeOfDay: TimeOfDay) = ambienceEngine.setTimeOfDay(timeOfDay)
+
+    fun setLayerEnabled(layerId: String, enabled: Boolean) =
+        ambienceEngine.setLayerEnabled(layerId, enabled)
+
+    fun setLayerGain(layerId: String, gainDb: Float) =
+        ambienceEngine.setLayerGain(layerId, gainDb)
+
+    fun setWeather(weather: Weather) = ambienceEngine.setWeather(weather)
+
+    fun pauseAmbience() = ambienceEngine.pause()
+
+    fun resumeAmbience() = ambienceEngine.resume()
 
     // ------------------------------------------------------------- library
 

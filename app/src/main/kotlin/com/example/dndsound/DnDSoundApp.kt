@@ -3,6 +3,7 @@ package com.example.dndsound
 import android.app.Application
 import android.content.Context
 import com.example.dndsound.audio.ExoPlayerHandle
+import com.example.dndsound.core.ambience.AmbienceEngine
 import com.example.dndsound.core.music.MusicEngine
 import com.example.dndsound.core.wheel.TrackSelector
 import com.example.dndsound.data.index.AppDatabase
@@ -54,6 +55,14 @@ class AppContainer(context: Context) {
         selectTrack = { point, mode, recent ->
             val tracks = libraryRepository.library.first().tracks
             trackSelector.select(tracks, point, mode, recent)
+        },
+    )
+
+    val ambienceEngine = AmbienceEngine(
+        scope = appScope,
+        playerFactory = { ExoPlayerHandle(appContext) },
+        weatherFiles = { weather ->
+            libraryRepository.library.first().weatherLoops[weather].orEmpty().map { it.uri }
         },
     )
 }

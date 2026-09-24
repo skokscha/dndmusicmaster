@@ -18,6 +18,8 @@ data class MetaJson(
     val wheel: Wheel? = null,
     val gainDb: Float? = null,
     val random: Random? = null,
+    /** meta-only: false switches the environment base to the overlap looper. */
+    val seamless: Boolean? = null,
 ) {
     @Serializable
     data class Wheel(val x: Float? = null, val y: Float? = null)

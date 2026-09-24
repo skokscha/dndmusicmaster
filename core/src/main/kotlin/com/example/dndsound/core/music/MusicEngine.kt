@@ -1,8 +1,8 @@
 package com.example.dndsound.core.music
 
+import com.example.dndsound.core.audio.FadeCoordinator
 import com.example.dndsound.core.audio.PlayerEvent
 import com.example.dndsound.core.audio.PlayerHandle
-import com.example.dndsound.core.mixer.Crossfade
 import com.example.dndsound.core.mixer.GainMath
 import com.example.dndsound.core.model.MusicMode
 import com.example.dndsound.core.model.Track
@@ -17,8 +17,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 
 /**
  * Music playback engine: two [PlayerHandle]s for equal-power A/B crossfading.
@@ -64,10 +62,7 @@ class MusicEngine(
     private val recent = ArrayDeque<String>()
     private var masterDb = 0f
     private var musicBusDb = 0f
-    private val fadeMutex = Mutex()
-
-    /** Incremented whenever a new fade must supersede the running one. */
-    private var fadeGeneration = 0L
+    private val fader = FadeCoordinator(rampStepMs)
     private var debounceJob: Job? = null
 
     init {
@@ -191,7 +186,6 @@ class MusicEngine(
         val nextIndex = if (active < 0) 0 else 1 - active
         val incoming = players[nextIndex]
         val outgoing = if (active >= 0) players[active] else null
-        val outgoingTrack = if (active >= 0) loadedTrack[active] else null
 
         loadedTrack[nextIndex] = track
         active = nextIndex
@@ -210,53 +204,22 @@ class MusicEngine(
                 error = null,
             )
         }
-        val generation = ++fadeGeneration
+        val inTarget = GainMath.dbToLinear(masterDb) *
+            GainMath.dbToLinear(musicBusDb) *
+            GainMath.dbToLinear(track.gainDb)
+        val generation = fader.begin()
         scope.launch {
-            runFade(generation, outgoing, outgoingTrack, incoming, track)
-        }
-    }
-
-    /**
-     * Equal-power crossfade. Outgoing continues from its current volume so an
-     * interrupted fade stays click-free; incoming starts from 0.
-     */
-    private suspend fun runFade(
-        generation: Long,
-        outgoing: PlayerHandle?,
-        outgoingTrack: Track?,
-        incoming: PlayerHandle,
-        incomingTrack: Track,
-    ) {
-        fadeMutex.withLock {
-            val steps = ((crossfadeMs + rampStepMs - 1) / rampStepMs).toInt().coerceAtLeast(1)
-            val outStart = outgoing?.volume ?: 0f
-            val inTarget = GainMath.dbToLinear(masterDb) *
-                GainMath.dbToLinear(musicBusDb) *
-                GainMath.dbToLinear(incomingTrack.gainDb)
-            for (i in 0..steps) {
-                if (generation != fadeGeneration) return
-                val t = i.toFloat() / steps
-                outgoing?.setVolume(outStart * Crossfade.fadeOut(t))
-                incoming.setVolume(inTarget * Crossfade.fadeIn(t))
-                delay(rampStepMs)
+            val completed = fader.crossfade(generation, outgoing, incoming, inTarget, crossfadeMs)
+            if (completed) {
+                outgoing?.pause()
+                _state.update { it.copy(crossfading = false) }
             }
-            if (generation != fadeGeneration) return
-            outgoing?.pause()
-            _state.update { it.copy(crossfading = false) }
         }
     }
 
     private suspend fun fadeEverythingOut() {
-        val generation = ++fadeGeneration
-        fadeMutex.withLock {
-            val steps = 6
-            for (i in 0..steps) {
-                if (generation != fadeGeneration) return
-                val t = i.toFloat() / steps
-                players.forEach { it.setVolume(it.volume * (1f - t)) }
-                delay(25)
-            }
-            if (generation != fadeGeneration) return
+        val generation = fader.begin()
+        if (fader.fadeOutAll(generation, players, 150)) {
             players.forEach { it.pause() }
         }
     }
@@ -272,21 +235,11 @@ class MusicEngine(
         val track = loadedTrack[active] ?: return
         handle.play()
         _state.update { it.copy(playing = true) }
-        val generation = ++fadeGeneration
-        scope.launch {
-            fadeMutex.withLock {
-                val target = GainMath.dbToLinear(masterDb) *
-                    GainMath.dbToLinear(musicBusDb) *
-                    GainMath.dbToLinear(track.gainDb)
-                val steps = 12 // ~300 ms resume ramp
-                val start = handle.volume
-                for (i in 0..steps) {
-                    if (generation != fadeGeneration) return@withLock
-                    handle.setVolume(start + (target - start) * i / steps.toFloat())
-                    delay(rampStepMs)
-                }
-            }
-        }
+        val target = GainMath.dbToLinear(masterDb) *
+            GainMath.dbToLinear(musicBusDb) *
+            GainMath.dbToLinear(track.gainDb)
+        val generation = fader.begin()
+        scope.launch { fader.rampTo(generation, handle, target, 300) } // ~300 ms resume ramp
     }
 
     private fun applyStaticGains() {
@@ -295,11 +248,11 @@ class MusicEngine(
         val target = GainMath.dbToLinear(masterDb) *
             GainMath.dbToLinear(musicBusDb) *
             GainMath.dbToLinear(track.gainDb)
-        players[active].setVolume(target)
+        val generation = fader.begin()
+        scope.launch { fader.rampTo(generation, players[active], target, 100) }
     }
 
     private fun releaseNow() {
-        fadeGeneration++
         loadedTrack.fill(null)
         active = -1
         players.forEach { it.release() }

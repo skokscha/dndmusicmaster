@@ -24,6 +24,12 @@ interface PlayerHandle {
 
     fun setVolume(linear: Float)
 
+    /** Loop the current source from its end back to the start. */
+    fun setLooping(enabled: Boolean)
+
+    /** Playback rate multiplier (1.0 = normal); used for spot jitter. */
+    fun setSpeedFactor(factor: Float)
+
     fun release()
 }
 

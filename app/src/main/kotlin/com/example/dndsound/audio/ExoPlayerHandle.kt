@@ -58,6 +58,14 @@ class ExoPlayerHandle(context: Context) : PlayerHandle {
         player.volume = volume
     }
 
+    override fun setLooping(enabled: Boolean) {
+        player.repeatMode = if (enabled) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
+    }
+
+    override fun setSpeedFactor(factor: Float) {
+        player.playbackParameters = player.playbackParameters.withSpeed(factor.coerceIn(0.5f, 1.5f))
+    }
+
     override fun release() {
         player.release()
     }

@@ -4,6 +4,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,6 +18,8 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -29,8 +33,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.dndsound.R
+import com.example.dndsound.core.ambience.AmbienceState
+import com.example.dndsound.core.model.Environment
+import com.example.dndsound.core.model.LayerKind
 import com.example.dndsound.core.model.Mood
 import com.example.dndsound.core.model.MusicMode
+import com.example.dndsound.core.model.TimeOfDay
+import com.example.dndsound.core.model.Weather
 import com.example.dndsound.core.repo.Library
 import com.example.dndsound.core.repo.ScanState
 import com.example.dndsound.core.wheel.WheelMath
@@ -47,6 +56,7 @@ fun MainScreen(viewModel: MainViewModel) {
     val library by viewModel.library.collectAsStateWithLifecycle()
     val scanState by viewModel.scanState.collectAsStateWithLifecycle()
     val music by viewModel.music.collectAsStateWithLifecycle()
+    val ambience by viewModel.ambience.collectAsStateWithLifecycle()
     val liveMarker by viewModel.liveMarker.collectAsStateWithLifecycle()
 
     val folderPicker = rememberLauncherForActivityResult(
@@ -72,6 +82,11 @@ fun MainScreen(viewModel: MainViewModel) {
                 label = { Text(stringResource(R.string.section_wheel)) },
             )
             FilterChip(
+                selected = section == Section.AMBIENCE,
+                onClick = { section = Section.AMBIENCE },
+                label = { Text(stringResource(R.string.section_ambience)) },
+            )
+            FilterChip(
                 selected = section == Section.LIBRARY,
                 onClick = { section = Section.LIBRARY },
                 label = { Text(stringResource(R.string.section_library)) },
@@ -88,6 +103,18 @@ fun MainScreen(viewModel: MainViewModel) {
                 onResume = viewModel::resume,
             )
 
+            Section.AMBIENCE -> AmbienceSection(
+                library = library,
+                ambience = ambience,
+                onSelectEnvironment = viewModel::selectEnvironment,
+                onTimeOfDay = viewModel::setTimeOfDay,
+                onLayerEnabled = viewModel::setLayerEnabled,
+                onLayerGain = viewModel::setLayerGain,
+                onWeather = viewModel::setWeather,
+                onStop = viewModel::pauseAmbience,
+                onResume = viewModel::resumeAmbience,
+            )
+
             Section.LIBRARY -> LibraryContent(
                 library = library,
                 scanState = scanState,
@@ -101,7 +128,135 @@ fun MainScreen(viewModel: MainViewModel) {
     }
 }
 
-private enum class Section { WHEEL, LIBRARY }
+private enum class Section { WHEEL, AMBIENCE, LIBRARY }
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun AmbienceSection(
+    library: Library,
+    ambience: AmbienceState,
+    onSelectEnvironment: (Environment?, TimeOfDay) -> Unit,
+    onTimeOfDay: (TimeOfDay) -> Unit,
+    onLayerEnabled: (String, Boolean) -> Unit,
+    onLayerGain: (String, Float) -> Unit,
+    onWeather: (Weather) -> Unit,
+    onStop: () -> Unit,
+    onResume: () -> Unit,
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        val environments = library.environments
+        if (environments.isEmpty()) {
+            Text(
+                stringResource(R.string.ambience_no_environments),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 24.dp),
+            )
+            return
+        }
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+        ) {
+            environments.take(MAX_ROWS).forEach { env ->
+                FilterChip(
+                    selected = ambience.environmentId == env.id,
+                    onClick = {
+                        if (ambience.environmentId == env.id) {
+                            onSelectEnvironment(null, ambience.timeOfDay)
+                        } else {
+                            onSelectEnvironment(env, ambience.timeOfDay)
+                        }
+                    },
+                    label = { Text(env.name) },
+                )
+            }
+        }
+        if (ambience.environmentId != null) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+                FilterChip(
+                    selected = ambience.timeOfDay == TimeOfDay.DAY,
+                    onClick = { onTimeOfDay(TimeOfDay.DAY) },
+                    label = { Text(stringResource(R.string.ambience_day)) },
+                )
+                FilterChip(
+                    selected = ambience.timeOfDay == TimeOfDay.NIGHT,
+                    onClick = { onTimeOfDay(TimeOfDay.NIGHT) },
+                    label = { Text(stringResource(R.string.ambience_night)) },
+                )
+            }
+            Text(
+                stringResource(R.string.ambience_weather),
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.padding(top = 12.dp),
+            )
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Weather.entries.forEach { weather ->
+                    FilterChip(
+                        selected = ambience.weather == weather,
+                        onClick = { onWeather(weather) },
+                        label = { Text(weatherLabel(weather)) },
+                    )
+                }
+            }
+            val loopLayers = ambience.layers.filter { it.kind == LayerKind.LOOP }
+            if (loopLayers.isNotEmpty()) {
+                Text(
+                    stringResource(R.string.ambience_layers),
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+                loopLayers.forEach { layer ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 2.dp),
+                    ) {
+                        Switch(
+                            checked = layer.enabled,
+                            onCheckedChange = { onLayerEnabled(layer.id, it) },
+                        )
+                        Text(layer.name, modifier = Modifier.padding(start = 8.dp))
+                        Slider(
+                            value = layer.gainDb.coerceIn(-30f, 6f),
+                            onValueChange = { onLayerGain(layer.id, it) },
+                            valueRange = -30f..6f,
+                            enabled = layer.enabled,
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(start = 8.dp),
+                        )
+                    }
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 12.dp)) {
+                if (ambience.playing) {
+                    Button(onClick = onStop) { Text(stringResource(R.string.music_pause)) }
+                } else {
+                    Button(onClick = onResume) { Text(stringResource(R.string.music_play)) }
+                }
+            }
+            ambience.error?.let { message ->
+                Text(
+                    stringResource(R.string.music_error, message),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun weatherLabel(weather: Weather): String = when (weather) {
+    Weather.NONE -> stringResource(R.string.weather_none)
+    Weather.RAIN -> stringResource(R.string.weather_rain)
+    Weather.STORM -> stringResource(R.string.weather_storm)
+    Weather.WIND -> stringResource(R.string.weather_wind)
+    Weather.SNOW -> stringResource(R.string.weather_snow)
+}
 
 @Composable
 private fun WheelSection(

@@ -1,13 +1,12 @@
 package com.example.dndsound.core.music
 
+import com.example.dndsound.core.audio.FakePlayerHandle
 import com.example.dndsound.core.audio.PlayerEvent
-import com.example.dndsound.core.audio.PlayerHandle
 import com.example.dndsound.core.model.MusicMode
 import com.example.dndsound.core.model.Track
 import com.example.dndsound.core.model.WheelPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -19,41 +18,6 @@ import org.junit.jupiter.api.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MusicEngineTest {
-
-    private class FakePlayerHandle : PlayerHandle {
-        override val events = MutableSharedFlow<PlayerEvent>(extraBufferCapacity = 16)
-        val sources = mutableListOf<String>()
-        var paused = false
-            private set
-        var released = false
-            private set
-        override var volume: Float = 1f
-            private set
-
-        override fun setSource(uri: String) {
-            sources += uri
-        }
-
-        override fun play() {
-            paused = false
-        }
-
-        override fun pause() {
-            paused = true
-        }
-
-        override fun setVolume(linear: Float) {
-            volume = linear
-        }
-
-        override fun release() {
-            released = true
-        }
-
-        fun emit(event: PlayerEvent) {
-            events.tryEmit(event)
-        }
-    }
 
     private fun track(id: String, gainDb: Float = 0f, mode: MusicMode = MusicMode.EXPLORATION) = Track(
         id = id,
