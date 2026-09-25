@@ -67,7 +67,9 @@ tone "music/battle/epic/epic/charge_01.ogg" 196 2
 tone "music/battle/creepy/creepy/ambush_01.ogg" 93 2
 
 # Ambience: one environment with a base loop, random spots and loop layers.
-noise "ambience/forest/base.ogg" 4
+# Day/night pair naming: base_day.ogg + base_night.ogg (base.ogg alone also
+# works, but mixing base.ogg with base_night.ogg triggers NIGHT_WITHOUT_DAY).
+noise "ambience/forest/base_day.ogg" 4
 noise "ambience/forest/base_night.ogg" 4
 tone "ambience/forest/spots/birds_01.ogg" 880 1
 tone "ambience/forest/spots/birds_02.ogg" 988 1

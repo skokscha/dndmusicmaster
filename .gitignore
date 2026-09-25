@@ -25,5 +25,9 @@ dev-samples/**/*.mp3
 dev-samples/**/*.wav
 !dev-samples/.gitkeep
 
+# Third-party music fetched by scripts/fetch-music.sh (manifest + credits are
+# committed, the audio itself never enters the repository)
+local-music/
+
 # Misc
 .DS_Store
