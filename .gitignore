@@ -31,3 +31,6 @@ local-music/
 
 # Misc
 .DS_Store
+
+# API keys for the fetch scripts stay local
+scripts/fetch-keys.local

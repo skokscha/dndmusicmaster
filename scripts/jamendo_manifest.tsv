@@ -1,0 +1,9 @@
+# zone directory | tag | result index
+# Extra variety for zones with a single track and battle zones.
+music/transitions/tragic-fight	epic	3
+music/transitions/enchanted	fantasy	3
+music/battle/epic/epic	orchestral	5
+music/battle/creepy/creepy	horror	3
+music/battle/tense/tense	cinematic	3
+music/mystic/mystic	ethnic	3
+music/funny/funny	celtic	3

@@ -1,0 +1,43 @@
+# relpath | search query | min duration s | max duration s | result index
+# Every row resolves through the Freesound API with the CC0-only filter; the
+# script downloads the public hq-ogg preview (token auth has no original-file
+# access, previews are ~128 kbit/s ogg — fine for ambience and spots).
+ambience/forest/base_day.ogg	forest ambience birds loop	25	75	1
+ambience/forest/base_night.ogg	night forest crickets ambience	25	75	1
+ambience/forest/spots/birds_01.ogg	bird chirp single	0.5	6	1
+ambience/forest/spots/birds_02.ogg	birds singing	0.5	15	1
+ambience/forest/layers/stream.ogg	forest stream brook loop	20	70	1
+ambience/forest/layers/campfire.ogg	campfire crackle loop	20	70	1
+ambience/tavern/base_day.ogg	tavern ambience	20	90	1
+ambience/tavern/base_night.ogg	fireplace ambience	20	90	1
+ambience/tavern/spots/laughter_01.ogg	crowd laughter	1	6	1
+ambience/tavern/spots/laughter_02.ogg	laughter	1	8	1
+ambience/tavern/layers/murmur.ogg	crowd chatter loop	20	90	1
+ambience/dungeon/base_day.ogg	cave ambience	20	90	1
+ambience/dungeon/base_night.ogg	dark cave ambience wind	25	75	1
+ambience/dungeon/spots/drip_01.ogg	water drip	0.2	10	1
+ambience/dungeon/spots/drip_02.ogg	water drop echo	0.5	5	1
+ambience/dungeon/layers/wind.ogg	cave wind deep loop	20	70	1
+ambience/coast/base_day.ogg	ocean waves shore loop	25	75	1
+ambience/coast/base_night.ogg	night beach waves ambience	25	75	1
+ambience/coast/spots/seagull_01.ogg	seagull call	0.5	5	1
+ambience/coast/spots/seagull_02.ogg	seagulls cries	1	6	1
+ambience/coast/layers/wind.ogg	wind loop	20	90	1
+weather/rain/drizzle.ogg	light rain loop	25	75	1
+weather/rain/downpour.ogg	rainstorm	20	90	1
+weather/storm/thunder_01.ogg	thunder clap	2	12	1
+weather/storm/thunder_02.ogg	thunder rumble distant	3	15	1
+weather/wind/gust.ogg	wind gust loop	20	75	1
+weather/wind/howling.ogg	howling wind storm loop	20	75	1
+sounds/creature/goblin_01.ogg	goblin growl	0.5	5	1
+sounds/creature/goblin_02.ogg	monster grunt	0.5	5	1
+sounds/creature/dragon_01.ogg	dragon roar	1	10	1
+sounds/attack/sword_hit_01.ogg	sword hit metal clang	0.3	4	1
+sounds/attack/sword_hit_02.ogg	sword slash whoosh	0.3	4	1
+sounds/attack/arrow_01.ogg	arrow shoot bow	0.3	3	1
+sounds/magical/spell_01.ogg	magic spell cast	1	6	1
+sounds/magical/spell_02.ogg	magic chime	0.5	8	1
+sounds/human/cheer_01.ogg	war cry battle	0.5	20	1
+sounds/mechanism/door_01.ogg	wooden door creak	0.5	6	1
+sounds/mechanism/chest_01.ogg	wooden chest open	0.5	6	1
+sounds/animal/wolf_01.ogg	wolf howl	1	8	1
