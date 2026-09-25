@@ -261,14 +261,24 @@ private fun MainPanel(
     onChangeFolder: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // Desaturation is mode-aware: battle and exploration trees are separate
+    // libraries, so a zone counts as filled only when the CURRENT mode has a
+    // track placed in it. emptyZoneIds = palette zones minus filled ones.
+    val modeTracks = remember(library.tracks, music.mode) {
+        library.tracks.filter { it.mode == music.mode }
+    }
+    val emptyZoneIds = remember(modeTracks) {
+        val filled = modeTracks
+            .mapNotNull { it.position?.let { point -> WheelZones.zoneAt(point).id } }
+            .toSet()
+        WheelZonePalette.zoneIds - filled
+    }
     when (section) {
         Section.WHEEL -> WheelPanel(
             music = music,
             liveMarker = liveMarker,
-            emptyZoneIds = library.tracks
-                .mapNotNull { it.position?.let { point -> WheelZones.zoneAt(point).id } }
-                .toSet(),
-            desaturateEmpty = settings.highlightEmptyZones && library.tracks.isNotEmpty(),
+            emptyZoneIds = emptyZoneIds,
+            desaturateEmpty = settings.highlightEmptyZones && modeTracks.isNotEmpty(),
             onWheelDrag = viewModel::onWheelDrag,
             onModeChange = viewModel::setMode,
             onPause = viewModel::pause,

@@ -1,6 +1,10 @@
 package com.example.dndsound.ui.wheel
 
 import android.graphics.Bitmap
+import android.graphics.BitmapShader
+import android.graphics.Matrix
+import android.graphics.Paint
+import android.graphics.Shader
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -10,7 +14,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -18,15 +21,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
@@ -37,10 +38,8 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.rememberTextMeasurer
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.TextUnit
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.dndsound.R
 import com.example.dndsound.core.model.Mood
@@ -77,6 +76,14 @@ import kotlin.math.sin
 /** Fraction of gray mixed into zones that have no tracks. */
 private const val EMPTY_DESATURATION = 0.35f
 
+/**
+ * Gradient raster size in px. The bitmap is rendered once at this fixed size
+ * and scaled up by the Canvas with high-quality filtering — a smooth gradient
+ * hides the upsampling completely, while keeping the rasterization (OKLab math
+ * per pixel) around 100k pixels instead of the full canvas (1M+ on a phone).
+ */
+private const val GRADIENT_BITMAP_PX = 320
+
 @Composable
 fun MoodWheel(
     marker: WheelPoint?,
@@ -101,17 +108,13 @@ fun MoodWheel(
     val moodLabels = moodLabels()
     val config = WheelConfig()
 
-    // Raster size in px drives the cached gradient bitmap.
-    val density = LocalDensity.current
-    var canvasPx by remember { mutableIntStateOf(0) }
-    val estimatedPx = with(density) { 440.dp.roundToPx() }
-    var gradient by remember(canvasPx, emptyZoneIds, desaturateEmpty) {
-        mutableStateOf<ImageBitmap?>(null)
-    }
-    LaunchedEffect(canvasPx, emptyZoneIds, desaturateEmpty) {
-        val size = canvasPx.takeIf { it > 0 } ?: estimatedPx
+    // Gradient bitmap is decoupled from the canvas size: rendered once at a
+    // fixed small resolution whenever the empty-zone set changes, reused at
+    // any canvas size through the shader.
+    var gradient by remember { mutableStateOf<GradientLayer?>(null) }
+    LaunchedEffect(emptyZoneIds, desaturateEmpty) {
         gradient = withContext(Dispatchers.Default) {
-            renderWheelBitmap(size, emptyZoneIds, desaturateEmpty)
+            GradientLayer(renderWheelBitmap(GRADIENT_BITMAP_PX, emptyZoneIds, desaturateEmpty))
         }
     }
 
@@ -137,7 +140,6 @@ fun MoodWheel(
     Canvas(
         modifier = modifier
             .aspectRatio(1f)
-            .onSizeChanged { canvasPx = it.width }
             .pointerInput(Unit) {
                 detectTapGestures(
                     onDoubleTap = { report(WheelPoint.CENTER) },
@@ -175,15 +177,16 @@ fun MoodWheel(
         val radius = min(size.width, size.height) / 2f * WHEEL_MARGIN
 
         drawCircle(color = backdropColor, radius = radius, center = center)
-        gradient?.let { bitmap ->
-            drawImage(
-                image = bitmap,
-                dstOffset = IntOffset(
-                    (center.x - radius).toInt(),
-                    (center.y - radius).toInt(),
-                ),
-                dstSize = IntSize(radius.toInt() * 2, radius.toInt() * 2),
-            )
+        gradient?.let { layer ->
+            // The shader on an antialiased circle keeps the rim smooth at any
+            // resolution — upscaling the raw bitmap would leave a jagged edge.
+            drawIntoCanvas { canvas ->
+                layer.matrix.setScale(radius * 2f / GRADIENT_BITMAP_PX, radius * 2f / GRADIENT_BITMAP_PX)
+                layer.matrix.postTranslate(center.x - radius, center.y - radius)
+                layer.shader.setLocalMatrix(layer.matrix)
+                layer.paint.shader = layer.shader
+                canvas.nativeCanvas.drawCircle(center.x, center.y, radius, layer.paint)
+            }
         }
 
         // Service lines: center ring, dashed tier split, transition band edges.
@@ -378,12 +381,25 @@ private fun DrawScope.drawLabel(
 
 // ----------------------------------------------------------------- raster
 
+/**
+ * Cached gradient bitmap with the machinery to paint it through a BitmapShader:
+ * bilinear filtering ([Paint.FILTER_BITMAP_FLAG]) upscales the small raster,
+ * antialiased circle geometry keeps the rim smooth at display resolution.
+ */
+private class GradientLayer(bitmap: Bitmap) {
+    val shader = BitmapShader(bitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+    val matrix = Matrix()
+}
+
 /** Renders the wheel gradient into a square bitmap (one cached pass). */
-private fun renderWheelBitmap(sizePx: Int, emptyZoneIds: Set<String>, desaturateEmpty: Boolean): ImageBitmap {
+private fun renderWheelBitmap(sizePx: Int, emptyZoneIds: Set<String>, desaturateEmpty: Boolean): Bitmap {
     val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
     val pixels = IntArray(sizePx * sizePx)
     val c = sizePx / 2f
-    val r = sizePx / 2f * WHEEL_MARGIN
+    // Wheel radius 1.0 maps to the bitmap edge: the shader circle cuts the
+    // square exactly at the wheel boundary.
+    val r = sizePx / 2f
     val anchors = WheelZonePalette.colorAnchors()
     val neutral = WheelZonePalette.neutralColor
     val config = WheelConfig()
@@ -393,11 +409,9 @@ private fun renderWheelBitmap(sizePx: Int, emptyZoneIds: Set<String>, desaturate
         for (x in 0 until sizePx) {
             val wx = (x - c) / r
             val wy = -(y - c) / r
-            val d2 = wx * wx + wy * wy
-            if (d2 > 1f) {
-                pixels[index++] = 0
-                continue
-            }
+            // The whole square is filled: the shader clips it to an
+            // antialiased circle, so the bitmap needs no alpha edge (a
+            // low-res alpha edge would upscale into visible stair steps).
             val point = WheelPoint(wx, wy)
             var color = WheelColor.at(point, anchors, neutral, config.tierSplitRadius)
             if (checkEmpty && WheelZones.zoneAt(point, config).id in emptyZoneIds) {
@@ -407,7 +421,7 @@ private fun renderWheelBitmap(sizePx: Int, emptyZoneIds: Set<String>, desaturate
         }
     }
     bitmap.setPixels(pixels, 0, sizePx, 0, 0, sizePx, sizePx)
-    return bitmap.asImageBitmap()
+    return bitmap
 }
 
 private fun desaturate(argb: Int, amount: Float): Int {
