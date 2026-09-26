@@ -17,7 +17,7 @@
 | --- | --- | --- | --- |
 | `fetch-music.sh` | [OpenGameArt](https://opengameart.org) + [incompetech](https://incompetech.com) (Kevin MacLeod) | CC0 / CC-BY 3.0 / CC-BY 4.0 | 55 оркестровых треков на все 25 зон колеса + 4 боевые зоны (`music_manifest.tsv`) |
 | `fetch-freesound.sh` | [Freesound](https://freesound.org) | только CC0 (фильтр в API) | 39 реальных звуков: 4 окружения (forest/tavern/dungeon/coast с base day+night, spots, layers), погода (дождь/гроза/ветер), одиночные звуки 7 категорий (`freesound_manifest.tsv`) |
-| `fetch-jamendo.sh` | [Jamendo](https://www.jamendo.com) | CC BY / BY-NC / BY-NC-ND (записывается лицензия каждого трека) | +7 треков разнообразия в переходы и боевые зоны (`jamendo_manifest.tsv`) |
+| `fetch-jamendo.sh` | [Jamendo](https://www.jamendo.com) | CC BY / BY-NC / BY-NC-ND (записывается лицензия каждого трека) | 156 треков: массовый набор по всем 28 музыкальным зонам (`jamendo_manifest.tsv`: зона → тег → индекс выдачи; теги epic/folk/dark/horror/suspense/magic/fairytale/quirky/…) |
 
 ## Использование
 
@@ -63,8 +63,12 @@ scripts/sort-music.py --list-zones                          # все зоны и
   (удалить файл, чтобы переразрешить после правки манифеста).
 - **Jamendo**: каталог в основном под BY-NC / BY-NC-ND — дословное
   распространение с указанием авторства в некоммерческом приложении допустимо;
-  конкретная лицензия каждого трека записана в атрибуции. API иногда отвечает
-  пустым списком — скрипт ретраит.
+  конкретная лицензия каждого трека записана в атрибуции. API нестабилен:
+  иногда отвечает пустым списком, а выдача по тегу может перемешиваться между
+  запросами — поэтому успешная строка манифеста закрепляется за треком
+  (`local-music/.jamendo-rows.tsv`), скачивание идёт по `id=` (идемпотентно,
+  кэш `local-music/.jamendo-downloaded.tsv`), атрибуция восстанавливается из
+  кэша даже при частичных отказах.
 - **Раскладка по зонам** меняется правкой манифестов: колонка пути в
   `music_manifest.tsv`, теги/индекс в `jamendo_manifest.tsv`, запросы и окна
   длительности в `freesound_manifest.tsv` — скрипты разложат файлы сами.
